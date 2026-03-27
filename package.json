@@ -1,0 +1,36 @@
+{
+  "name": "dungeon-deck-recorder",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit",
+    "format": "prettier --write .",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-auto": "^3.0.0",
+    "@sveltejs/kit": "^2.0.0",
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.4.0",
+    "@typescript-eslint/parser": "^7.4.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5",
+    "svelte": "^5.55.0",
+    "typescript": "^5.4.5",
+    "vite": "^8.0.3"
+  },
+  "dependencies": {
+    "@capacitor/app": "^6.0.1",
+    "@capacitor/core": "^6.0.1",
+    "@capacitor/filesystem": "^6.0.1",
+    "compromise": "^14.14.0"
+  },
+  "optionalDependencies": {
+    "@capacitor/android": "^6.0.1",
+    "@capacitor/ios": "^6.0.1"
+  }
+}

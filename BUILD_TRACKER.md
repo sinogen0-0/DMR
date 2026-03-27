@@ -3,7 +3,7 @@
 **Project**: Dungeon Deck Recorder  
 **Technology Stack**: Svelte + SvelteKit + Capacitor + TypeScript  
 **Status**: Planning → Implementation  
-**Last Updated**: [UPDATE DATE]
+**Last Updated**: March 27, 2026
 
 ---
 
@@ -40,7 +40,14 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - [ ] Platform detection returns correct environment (web/mobile)
 - [ ] TypeScript compiles without errors
 
-**Status**: ⏳ Not Started
+**Status**: ✅ Complete
+
+**Debug Summary** (March 27, 2026):
+- Fixed ESM configuration: vite.config.ts was using CommonJS `path.resolve()` → converted to ESM with `fileURLToPath` and `import.meta.url`
+- Added missing dependencies: `@sveltejs/kit` and `@sveltejs/adapter-auto` 
+- Added `"type": "module"` to package.json for explicit ESM declaration
+- Removed broken `src/lib/adapter.ts` file (unused, conflicting with svelte.config.js)
+- Result: `npm run dev` runs cleanly, `npm run type-check` passes with 0 errors
 
 ---
 
@@ -204,7 +211,7 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - Component: `src/components/ExtractionPreview.svelte` for rendering extractions
 
 **Context & References**:
-- [DESIGN.md](./DESIGN.md) — Industrial Aesthetic guidelines (rows 1-150)
+- [DESIGN.md](./DESIGN.md) — Industrial Aesthetic guidelines
 - Stitch Design: Reference "THE DOSSIERS" screen structure
 
 **Files to Create**:
@@ -234,7 +241,7 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - Fields per dossier: name, type, description, relationships, appearances, locations mentioned, created_at, updated_at
 
 **Context & References**:
-- Stitch Design reference for dossier structure (from design files)
+- Stitch Design reference for dossier structure
 
 **Files to Create**:
 - `src/lib/types/dossier.ts` — Dossier type definitions
@@ -388,7 +395,7 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - Color/spacing/typography extraction for consistency
 
 **Context & References**:
-- Stitch Design: Extract screens from `stitch_dungeon_deck_recorder.zip` and `code.html`
+- Stitch Design Files: Extract screens from provided design
 
 **Files to Create**:
 - `STITCH_DESIGN_AUDIT.md` — Design audit document
@@ -610,13 +617,13 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 
 | Phase | Steps | Status |
 |-------|-------|--------|
-| Phase 1: Core Audio & Transcription | 1-4 | ⏳ Not Started |
+| Phase 1: Core Audio & Transcription | 1-4 | ✅ 1 Complete, 3 Not Started |
 | Phase 2: Extraction & Categorization | 5-8 | ⏳ Not Started |
 | Phase 3: Dossier Management & Merging | 9-10 | ⏳ Not Started |
 | Phase 4: Dossier Browsing & Management | 11-12 | ⏳ Not Started |
 | Phase 5: Design Adaptation & New UI | 13-19 | ⏳ Not Started |
 | Phase 6: Testing & Deployment | 20 | ⏳ Not Started |
-| **TOTAL** | **20 steps** | **⏳ Not Started** |
+| **TOTAL** | **20 steps** | **1 In Progress, 19 Not Started** |
 
 ---
 
