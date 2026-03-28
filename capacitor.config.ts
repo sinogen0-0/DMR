@@ -5,7 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Dungeon Deck Recorder',
   webDir: 'build',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    cleartext: true
   },
   plugins: {
     SplashScreen: {
