@@ -1,24 +1,4 @@
-import { defineConfig } from 'vite';
-import { sveltekit } from '@sveltejs/kit/vite';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+// This file is kept at root for Vite discovery
+// The actual config is in config/vite.config.ts
+export { default } from './config/vite.config.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-export default defineConfig({
-	plugins: [sveltekit()],
-	resolve: {
-		alias: {
-			$lib: `${__dirname}/src/lib`,
-			$components: `${__dirname}/src/lib/components`,
-			$services: `${__dirname}/src/lib/services`,
-			$stores: `${__dirname}/src/lib/stores`,
-			$types: `${__dirname}/src/lib/types`,
-			$utils: `${__dirname}/src/lib/utils`
-		}
-	},
-	server: {
-		port: 5173,
-		host: true
-	}
-});

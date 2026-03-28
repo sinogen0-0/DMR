@@ -23,6 +23,8 @@
     "paths": {
       "$lib": ["src/lib"],
       "$lib/*": ["src/lib/*"],
+      "$features": ["src/lib/features"],
+      "$features/*": ["src/lib/features/*"],
       "$components": ["src/lib/components"],
       "$components/*": ["src/lib/components/*"],
       "$services": ["src/lib/services"],

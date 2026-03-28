@@ -35,10 +35,10 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - `capacitor.config.ts` — Capacitor configuration
 
 **Acceptance Criteria**:
-- [ ] SvelteKit dev server runs locally (`npm run dev`)
+- [✅] SvelteKit dev server runs locally (`npm run dev`)
 - [ ] Capacitor configured for iOS and Android
 - [ ] Platform detection returns correct environment (web/mobile)
-- [ ] TypeScript compiles without errors
+- [✅] TypeScript compiles without errors
 
 **Status**: ✅ Complete
 
