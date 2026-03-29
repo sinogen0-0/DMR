@@ -19,6 +19,7 @@ export interface Recording {
   duration: number;
   format: 'flac' | 'm4a' | 'opus';
   size: number;
+  blob?: Blob;
   blobUrl?: string;
   path?: string;
   transcription?: string;

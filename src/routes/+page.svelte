@@ -1,7 +1,12 @@
 <script lang="ts">
+	import { goto } from '$app/navigation'; //Ignore, being fucking annoying
 	import { getPlatformInfo } from '$lib/utils/platformDetector';
 	
 	const platformInfo = getPlatformInfo();
+
+	function navigateToRecording() {
+		throw goto('/recording');
+	}
 </script>
 
 <div class="home-container">
@@ -16,10 +21,10 @@
 	<div>
 		<h2>Features</h2>
 		<div class="feature-grid">
-			<div class="feature-card">
+			<button on:click={navigateToRecording} class="feature-card feature-link" type="button">
 				<div class="feature-title">🎙️ Audio Recording</div>
 				<div class="feature-desc">Record D&D sessions in FLAC format with offline support</div>
-			</div>
+			</button>
 			<div class="feature-card">
 				<div class="feature-title">✨ Transcription</div>
 				<div class="feature-desc">Convert audio to M4A after automatic transcription</div>
@@ -84,6 +89,30 @@
 		border-bottom: 1px solid #363226;
 		border-right: 1px solid #363226;
 		padding: 1.5rem;
+		font-family: inherit;
+		cursor: pointer;
+	}
+
+	.feature-link {
+		text-decoration: none;
+		color: inherit;
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.feature-link:hover {
+		background-color: #f9f5f0;
+		border-top: 1px solid #e8dcc8;
+		border-left: 1px solid #e8dcc8;
+		border-bottom: 1px solid #4a3a2a;
+		border-right: 1px solid #4a3a2a;
+	}
+
+	.feature-link:active {
+		border-top: 1px solid #363226;
+		border-left: 1px solid #363226;
+		border-bottom: 1px solid #eee8d8;
+		border-right: 1px solid #eee8d8;
 	}
 
 	.feature-title {
