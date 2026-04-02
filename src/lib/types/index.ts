@@ -13,6 +13,19 @@ export interface Entity {
   source?: string;
 }
 
+export type TranscriptionTagStatus = 'linked' | 'needs_review';
+
+export interface TranscriptionTag {
+  id: string;
+  name: string;
+  type: DossierType;
+  confidence: number;
+  source: string;
+  mentionContexts: string[];
+  status: TranscriptionTagStatus;
+  customEntityId?: string;
+}
+
 export interface Recording {
   id: string;
   timestamp: number;
@@ -24,6 +37,7 @@ export interface Recording {
   path?: string;
   transcription?: string;
   extractedEntities?: Entity[];
+  transcriptionTags?: TranscriptionTag[];
 }
 
 export interface Dossier {
@@ -66,4 +80,16 @@ export interface AppSettings {
   referenceLinkStyle: 'modal' | 'fullpage';
   language: string;
   theme: 'light' | 'dark';
+}
+
+/**
+ * User-managed entity entry — a named entity manually added to a category list
+ */
+export interface CustomEntity {
+  id: string;
+  name: string;
+  type: DossierType;
+  createdAt: number;
+  updatedAt: number;
+  notes?: string;
 }

@@ -10,7 +10,6 @@
   let finalTranscript: string = '';
   let confidence: number = 0;
   let error: string | null = null;
-  let testAudioBlob: Blob | null = null;
   let transcriptionMessage: string = '';
 
   onMount(() => {

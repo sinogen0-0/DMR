@@ -45,7 +45,7 @@ class TranscriptionService {
     this.options = {
       language: options.language || 'en-US',
       autoConvert: options.autoConvert ?? true,
-      continuous: options.continuous ?? false,
+      continuous: options.continuous ?? true,
     };
 
     try {

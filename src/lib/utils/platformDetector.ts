@@ -79,6 +79,13 @@ export function isMobile(): boolean {
 }
 
 /**
+ * Check if running on a native platform (iOS/Android app shell)
+ */
+export function isNative(): boolean {
+  return isMobile() && hasCapacitor();
+}
+
+/**
  * Check if running on iOS
  */
 export function isIOS(): boolean {

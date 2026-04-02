@@ -12,7 +12,8 @@ export { createMicrophonePermission, MicrophonePermission } from '$lib/features/
 export type { PermissionStatus, PermissionCheckResult, PermissionRequestResult } from '$lib/features/audio/services/permissions/microphonePermission';
 export type { Recording } from '$lib/types';
 
-// Future service exports:
-// export { createTranscriptionService } from './transcriptionService';
-// export { createExtractionService } from './extractionService';
-// export { createCategorizationService } from './categorizationService';
+export { createExtractionService } from './extraction/extractionService';
+export type { ExtractionService, ExtractionOptions } from './extraction/extractionService';
+export { createCustomEntityService } from './customEntityService';
+export { createCategorizationService } from './categorization/categorizationService';
+export type { CategorizationService, CategorizationResult } from './categorization/categorizationService';

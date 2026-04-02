@@ -74,7 +74,7 @@ export class SpeechRecognitionWrapper {
   constructor(options: SpeechRecognitionOptions = {}) {
     this.options = {
       language: options.language || 'en-US',
-      continuous: options.continuous ?? false,
+      continuous: options.continuous ?? true,
       interimResults: options.interimResults ?? true,
       maxAlternatives: options.maxAlternatives ?? 1,
     };

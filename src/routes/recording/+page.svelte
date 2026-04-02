@@ -1,14 +1,30 @@
 <script lang="ts">
-  import { createAudioService, createStorageService, createTranscriptionService } from '$services';
+  import { createAudioService, createExtractionService, createStorageService, createTranscriptionService } from '$services';
   import type { TranscriptionSession } from '$services';
+  import { CapacitorSpeechService } from '$lib/services/audio/capacitorSpeechService';
+  import { isNative } from '$utils/platformDetector';
   import { onMount } from 'svelte';
 
   let audioService: ReturnType<typeof createAudioService> | null = null;
   let transcriptionService: ReturnType<typeof createTranscriptionService> | null = null;
+  let capacitorSpeechService: CapacitorSpeechService | null = null;
   let recording = false;
   let paused = false;
   let elapsedTime = 0;
-  let recordingList: Array<{ id: string; duration: number; timestamp: number; playbackUrl?: string; transcription?: string }> = [];
+  type DisplayTag = {
+    name: string;
+    type: 'NPC' | 'PLAYER_CHARACTER' | 'LOCATION' | 'STORY_PLOT';
+    status: 'linked' | 'needs_review';
+    mentionContexts: string[];
+  };
+  let recordingList: Array<{
+    id: string;
+    duration: number;
+    timestamp: number;
+    playbackUrl?: string;
+    transcription?: string;
+    transcriptionTags?: DisplayTag[];
+  }> = [];
   let error: string | null = null;
   let permissionStatus: 'pending' | 'granted' | 'denied' | 'unknown' = 'pending';
   let permissionDescription = '';
@@ -26,11 +42,18 @@
   let transcriptionError: string | null = null;
   let isSavingTranscription: boolean = false;
 
+  // Auto-transcription state
+  let isAutoTranscribing: boolean = false;
+  let showTranscribingSpinner: boolean = false;
+  let autoTranscribeSpinnerTimeout: ReturnType<typeof setTimeout> | null = null;
+  let webTranscriptionPromise: Promise<void> | null = null;
+
   onMount(async () => {
     audioService = createAudioService();
     transcriptionService = createTranscriptionService({
       language: 'en-US',
     });
+    capacitorSpeechService = new CapacitorSpeechService('en-US');
     
     isTransriptionSupported = transcriptionService.isSupported();
 
@@ -75,11 +98,12 @@
         timestamp: rec.timestamp,
         playbackUrl: rec.blobUrl,
         transcription: rec.transcription,
+        transcriptionTags: rec.transcriptionTags,
       }));
       
       console.log('🎵 Playback URLs:', mappedRecordings.map(r => ({ id: r.id, url: r.playbackUrl })));
       
-      recordingList = mappedRecordings;
+      recordingList = mappedRecordings.sort((a, b) => b.timestamp - a.timestamp);
     } catch (e) {
       console.error('Failed to load saved recordings:', e);
       // Don't show error to user for this operation, just fail gracefully
@@ -131,10 +155,90 @@
       recording = true;
       paused = false;
       elapsedTime = 0;
+
+      // On web, run live transcription in parallel with recording.
+      if (!isNative()) {
+        startWebParallelTranscription();
+      }
     } catch (e) {
       error = `${e}`;
       recording = false;
       await checkPermissionStatus();
+    }
+  }
+
+  function startWebParallelTranscription() {
+    if (!transcriptionService || !isTransriptionSupported) {
+      return;
+    }
+
+    isAutoTranscribing = true;
+    showTranscribingSpinner = false;
+    if (autoTranscribeSpinnerTimeout) {
+      clearTimeout(autoTranscribeSpinnerTimeout);
+    }
+    autoTranscribeSpinnerTimeout = setTimeout(() => {
+      if (isAutoTranscribing) {
+        showTranscribingSpinner = true;
+      }
+    }, 100);
+
+    isTranscribing = true;
+    interimTranscript = '';
+    finalTranscript = '';
+    editedTranscript = '';
+    transcriptionError = null;
+    transcriptionConfidence = 0;
+
+    const liveRecordingId = `live-${Date.now()}`;
+    const emptyBlob = new Blob([], { type: 'audio/wav' });
+    const mockRecording = {
+      id: liveRecordingId,
+      timestamp: Date.now(),
+      duration: 30,
+      format: 'opus' as const,
+      size: 0,
+    };
+
+    webTranscriptionPromise = transcriptionService
+      .transcribeAudioBlob(liveRecordingId, emptyBlob, mockRecording)
+      .then((result) => {
+        finalTranscript = result.transcript;
+        editedTranscript = result.transcript;
+        transcriptionConfidence = Math.round((result.confidence || 0) * 100);
+      })
+      .catch((e) => {
+        transcriptionError = `${e instanceof Error ? e.message : String(e)}`;
+      })
+      .finally(() => {
+        isAutoTranscribing = false;
+        showTranscribingSpinner = false;
+        if (autoTranscribeSpinnerTimeout) {
+          clearTimeout(autoTranscribeSpinnerTimeout);
+        }
+        isTranscribing = false;
+      });
+  }
+
+  async function finalizeWebParallelTranscription(recordingId: string) {
+    selectedRecordingId = recordingId;
+
+    if (transcriptionService && isTranscribing) {
+      transcriptionService.stopTranscription();
+    }
+
+    if (webTranscriptionPromise) {
+      await webTranscriptionPromise;
+      webTranscriptionPromise = null;
+    }
+
+    if (editedTranscript.trim()) {
+      await saveTranscription();
+    } else {
+      databaseMessage = '✅ Recording saved to database. No speech captured for transcription.';
+      setTimeout(() => {
+        databaseMessage = '';
+      }, 3000);
     }
   }
 
@@ -180,13 +284,13 @@
       const playbackUrl = recordedAudio.blobUrl ?? undefined;
 
       recordingList = [
-        ...recordingList,
         {
           id: recordedAudio.id,
           duration: recordedAudio.duration,
           timestamp: recordedAudio.timestamp,
           playbackUrl,
         },
+        ...recordingList,
       ];
 
       recording = false;
@@ -217,6 +321,18 @@
 
         await storage.saveRecording(recordingToSave);
         databaseMessage = `✅ Recording automatically saved to database!`;
+        
+        if (isNative()) {
+          if (!recordedAudio.blob) {
+            databaseMessage = 'Recording saved, but no audio blob available for auto-transcription.';
+            return;
+          }
+          // Mobile: Use Capacitor speech recognition on the audio file
+          await autoTranscribeWithCapacitor(recordedAudio.id, recordedAudio.blob);
+        } else {
+          // Web: finalize the live parallel transcription started with recording.
+          await finalizeWebParallelTranscription(recordedAudio.id);
+        }
       } catch (storageError) {
         console.error('Failed to auto-save recording:', storageError);
         // Don't fail the stop operation if save fails
@@ -225,6 +341,48 @@
       error = `Failed to stop recording: ${e}`;
       recording = false;
       await checkPermissionStatus();
+    }
+  }
+
+  async function autoTranscribeWithCapacitor(recordingId: string, blob: Blob) {
+    if (!capacitorSpeechService) {
+      console.error('Capacitor speech service not initialized');
+      return;
+    }
+
+    isAutoTranscribing = true;
+    showTranscribingSpinner = false;
+    
+    // Show spinner after 100ms if still transcribing
+    autoTranscribeSpinnerTimeout = setTimeout(() => {
+      if (isAutoTranscribing) {
+        showTranscribingSpinner = true;
+      }
+    }, 100);
+
+    selectedRecordingId = recordingId;
+    finalTranscript = '';
+    editedTranscript = '';
+    transcriptionConfidence = 0;
+    transcriptionError = null;
+
+    try {
+      const result = await capacitorSpeechService.transcribeAudioBlob(blob);
+      finalTranscript = result.transcript;
+      editedTranscript = result.transcript;
+      transcriptionConfidence = Math.round(result.confidence * 100);
+      
+      // Auto-save the transcription and tags
+      await saveTranscription();
+    } catch (e) {
+      transcriptionError = `Failed to transcribe audio: ${e instanceof Error ? e.message : String(e)}`;
+      console.error('Capacitor transcription error:', e);
+    } finally {
+      isAutoTranscribing = false;
+      showTranscribingSpinner = false;
+      if (autoTranscribeSpinnerTimeout) {
+        clearTimeout(autoTranscribeSpinnerTimeout);
+      }
     }
   }
 
@@ -295,13 +453,37 @@
       // Update with transcription
       recording.transcription = editedTranscript;
 
+      const extractionService = createExtractionService();
+      const transcriptionTags = await extractionService.buildTranscriptionTags(editedTranscript, {
+        minConfidence: 30,
+        maxEntities: 50,
+      });
+      recording.transcriptionTags = transcriptionTags;
+      recording.extractedEntities = transcriptionTags.map(tag => ({
+        id: tag.id,
+        name: tag.name,
+        type: tag.type,
+        confidence: tag.confidence,
+        mentions: tag.mentionContexts,
+        source: tag.source,
+      }));
+
       // Save back to storage
       await storage.saveRecording(recording);
 
       // Update the display
       recordingList = recordingList.map(rec => 
         rec.id === selectedRecordingId 
-          ? { ...rec, transcription: editedTranscript }
+          ? {
+              ...rec,
+              transcription: editedTranscript,
+              transcriptionTags: transcriptionTags.map(tag => ({
+                name: tag.name,
+                type: tag.type,
+                status: tag.status,
+                mentionContexts: tag.mentionContexts,
+              }))
+            }
           : rec
       );
 
@@ -312,7 +494,7 @@
       editedTranscript = '';
       transcriptionConfidence = 0;
       
-      databaseMessage = '✅ Transcription saved successfully!';
+      databaseMessage = `✅ Transcription saved with ${transcriptionTags.length} dossier tag${transcriptionTags.length === 1 ? '' : 's'}!`;
       setTimeout(() => { databaseMessage = ''; }, 3000);
     } catch (e) {
       transcriptionError = `Failed to save transcription: ${e}`;
@@ -322,6 +504,10 @@
   }
 
   function clearTranscription() {
+    if (transcriptionService && isTranscribing) {
+      transcriptionService.stopTranscription();
+    }
+    webTranscriptionPromise = null;
     selectedRecordingId = null;
     isTranscribing = false;
     interimTranscript = '';
@@ -346,6 +532,13 @@
 
   function formatDate(timestamp: number): string {
     return new Date(timestamp).toLocaleString();
+  }
+
+  function typeLabel(type: DisplayTag['type']): string {
+    if (type === 'PLAYER_CHARACTER') return 'Character';
+    if (type === 'STORY_PLOT') return 'Story Device';
+    if (type === 'LOCATION') return 'Location';
+    return 'NPC';
   }
 </script>
 
@@ -448,6 +641,20 @@
                 </div>
               {/if}
 
+              {#if rec.transcriptionTags && rec.transcriptionTags.length > 0}
+                <div class="tag-display">
+                  <p class="transcription-label">🏷️ Dossier Tags:</p>
+                  <div class="tag-list">
+                    {#each rec.transcriptionTags as tag}
+                      <div class="tag-chip" class:review={tag.status === 'needs_review'}>
+                        <span class="tag-name">{tag.name}</span>
+                        <span class="tag-type">{typeLabel(tag.type)}</span>
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+
               <div class="recording-actions">
                 {#if !selectedRecordingId || selectedRecordingId !== rec.id}
                   <button 
@@ -468,7 +675,14 @@
                 <div class="transcription-section">
                   <h3>Transcription in Progress</h3>
                   
-                  {#if !isTransriptionSupported}
+                  {#if showTranscribingSpinner}
+                    <div class="spinner-container">
+                      <div class="spinner"></div>
+                      <p>Transcribing audio...</p>
+                    </div>
+                  {/if}
+                  
+                  {#if !isAutoTranscribing && !isTransriptionSupported}
                     <div class="error-banner">
                       <p>❌ Web Speech API not supported in this browser</p>
                       <p style="font-size: 0.875rem; margin-top: 0.5rem;">
@@ -481,7 +695,7 @@
                     </div>
                   {:else}
                     <div>
-                      {#if isTranscribing}
+                      {#if isTranscribing && !isAutoTranscribing}
                         <div class="info-banner">
                           <p>🎤 Listening... Speak now!</p>
                         </div>
@@ -867,10 +1081,6 @@
     font-style: italic;
   }
 
-  .transcript-box.final .transcript-text {
-    font-style: normal;
-  }
-
   .confidence {
     font-size: 0.8125rem;
     color: #7d6c47;
@@ -910,5 +1120,77 @@
 
   .btn:disabled:hover {
     background-color: inherit;
+  }
+
+  .tag-display {
+    background-color: #eef6ff;
+    border-left: 4px solid #6b8caa;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+  }
+
+  .tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #ffffff;
+    border: 1px solid #d1dbe8;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .tag-chip.review {
+    border-color: #d4a574;
+    background: #fff7ec;
+  }
+
+  .tag-name {
+    font-weight: 600;
+    color: #3d5574;
+  }
+
+  .tag-type {
+    color: #6b6250;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.6875rem;
+  }
+
+  .spinner-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 2rem 1rem;
+    background-color: #f0f8f5;
+    border: 1px solid #d1dbe8;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #e8dcc8;
+    border-top-color: #9a442d;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .spinner-container p {
+    color: #3d5574;
+    font-size: 0.9375rem;
+    margin: 0;
   }
 </style>

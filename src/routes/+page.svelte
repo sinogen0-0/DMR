@@ -1,11 +1,22 @@
 <script lang="ts">
-	import { goto } from '$app/navigation'; //Ignore, being fucking annoying
 	import { getPlatformInfo } from '$lib/utils/platformDetector';
 	
 	const platformInfo = getPlatformInfo();
 
 	function navigateToRecording() {
-		throw goto('/recording');
+		window.location.href = '/recording';
+	}
+
+	function navigateToTranscription() {
+		window.location.href = '/transcription-test';
+	}
+
+	function navigateToEntities() {
+		window.location.href = '/entities';
+	}
+
+	function navigateToDossiers() {
+		window.location.href = '/dossiers';
 	}
 </script>
 
@@ -25,18 +36,18 @@
 				<div class="feature-title">🎙️ Audio Recording</div>
 				<div class="feature-desc">Record D&D sessions in FLAC format with offline support</div>
 			</button>
-			<div class="feature-card">
+			<button on:click={navigateToTranscription} class="feature-card feature-link" type="button">
 				<div class="feature-title">✨ Transcription</div>
 				<div class="feature-desc">Convert audio to M4A after automatic transcription</div>
-			</div>
-			<div class="feature-card">
-				<div class="feature-title">📖 Entity Extraction</div>
-				<div class="feature-desc">Auto-extract NPCs, locations, and plot points</div>
-			</div>
-			<div class="feature-card">
+			</button>
+			<button on:click={navigateToEntities} class="feature-card feature-link" type="button">
+				<div class="feature-title">📖 Entity Lists</div>
+				<div class="feature-desc">Add characters, NPCs, locations, and story objects</div>
+			</button>
+			<button on:click={navigateToDossiers} class="feature-card feature-link" type="button">
 				<div class="feature-title">🗂️ Dossier System</div>
-				<div class="feature-desc">Manage and link entities across sessions</div>
-			</div>
+				<div class="feature-desc">View transcriptions grouped by dossier with mention snippets</div>
+			</button>
 		</div>
 	</div>
 </div>
