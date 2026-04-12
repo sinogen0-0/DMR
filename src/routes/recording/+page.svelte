@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { createAudioService, createExtractionService, createStorageService, createTranscriptionService } from '$services';
   import type { TranscriptionSession } from '$services';
   import { CapacitorSpeechService } from '$lib/services/audio/capacitorSpeechService';
@@ -455,7 +456,7 @@
 
       const extractionService = createExtractionService();
       const transcriptionTags = await extractionService.buildTranscriptionTags(editedTranscript, {
-        minConfidence: 30,
+        minConfidence: 20,
         maxEntities: 50,
       });
       recording.transcriptionTags = transcriptionTags;
@@ -539,6 +540,14 @@
     if (type === 'STORY_PLOT') return 'Story Device';
     if (type === 'LOCATION') return 'Location';
     return 'NPC';
+  }
+
+  function openExtractionReview(recordingId: string): void {
+    goto(`/transcriptions/${recordingId}/review`);
+  }
+
+  function openTranscriptView(recordingId: string): void {
+    goto(`/transcriptions/${recordingId}`);
   }
 </script>
 
@@ -664,6 +673,23 @@
                     title="Start transcription from microphone"
                   >
                     🎤 Transcribe
+                  </button>
+                {/if}
+
+                {#if rec.transcription || (rec.transcriptionTags && rec.transcriptionTags.length > 0)}
+                  <button
+                    class="btn btn-secondary"
+                    on:click={() => openTranscriptView(rec.id)}
+                    title="View transcript with linked dossier references"
+                  >
+                    📜 View Transcript
+                  </button>
+                  <button
+                    class="btn btn-success"
+                    on:click={() => openExtractionReview(rec.id)}
+                    title="Review extracted entities for this transcription"
+                  >
+                    🧾 Review Extractions
                   </button>
                 {/if}
               </div>

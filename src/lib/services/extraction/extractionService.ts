@@ -6,6 +6,7 @@
 import type { Entity, DossierType, TranscriptionTag } from '$types';
 import { createCustomEntityService } from '$lib/services/customEntityService';
 import { createCategorizationService } from '$lib/services/categorization/categorizationService';
+import { getTaggingParams } from '$stores/taggingParamsStore';
 
 export interface ExtractionOptions {
   minConfidence?: number;
@@ -118,7 +119,10 @@ export class ExtractionService {
       await this.initialize();
     }
 
-    const { minConfidence = 30, maxEntities = 50, language = 'en' } = options;
+    const storeParams = getTaggingParams();
+    const minConfidence = options.minConfidence ?? storeParams.extraction.minConfidence;
+    const maxEntities = options.maxEntities ?? storeParams.extraction.maxEntities;
+    const { language = 'en' } = options;
 
     try {
       // Process text with Compromise.js
@@ -155,6 +159,8 @@ export class ExtractionService {
 
       // Add phrasal entity extraction
       allCandidates = [...allCandidates, ...this._extractPhrasalEntities(text)];
+      // Add lowercase-friendly fallback extraction for speech transcripts
+      allCandidates = [...allCandidates, ...this._extractFallbackTranscriptCandidates(text)];
       allCandidates = allCandidates.map((candidate) => this._sanitizeEntityName(candidate)).filter(Boolean) as string[];
 
       // Match user-added custom entity names directly in the text
@@ -247,6 +253,50 @@ export class ExtractionService {
   }
 
   /**
+   * Extract likely entities from lowercase or lightly punctuated transcripts.
+   * This improves recall for speech-to-text output that often lacks proper casing.
+   */
+  private _extractFallbackTranscriptCandidates(text: string): string[] {
+    const candidates: string[] = [];
+    const normalized = ` ${text.toLowerCase()} `;
+
+    const locationPatterns = [
+      /\b(?:in|at|to|from|near|inside|outside)\s+(?:the\s+)?([a-z][a-z'\-]{2,}(?:\s+[a-z][a-z'\-]{2,}){0,3})\b/g,
+      /\b([a-z][a-z'\-]{2,}(?:\s+[a-z][a-z'\-]{2,}){0,2})\s+(?:tavern|inn|keep|castle|tower|forest|grove|dungeon|temple|ruins)\b/g
+    ];
+
+    for (const pattern of locationPatterns) {
+      pattern.lastIndex = 0;
+      let match: RegExpExecArray | null;
+      while ((match = pattern.exec(normalized)) !== null) {
+        const phrase = this._toTitleCase(match[1]?.trim() ?? '');
+        if (phrase) candidates.push(phrase);
+      }
+    }
+
+    const objectPattern = /\b(?:the\s+)?([a-z][a-z'\-]{2,}(?:\s+[a-z][a-z'\-]{2,}){0,2})\s+of\s+the\s+([a-z][a-z'\-]{2,}(?:\s+[a-z][a-z'\-]{2,}){0,2})\b/g;
+    objectPattern.lastIndex = 0;
+    let objectMatch: RegExpExecArray | null;
+    while ((objectMatch = objectPattern.exec(normalized)) !== null) {
+      const left = objectMatch[1]?.trim() ?? '';
+      const right = objectMatch[2]?.trim() ?? '';
+      const phrase = this._toTitleCase(`${left} of the ${right}`.trim());
+      if (phrase) candidates.push(phrase);
+    }
+
+    // Keep likely unique person names from simple speech like "met janna".
+    const personContextPattern = /\b(?:met|spoke\s+with|talked\s+to|returned\s+it\s+to|gave\s+it\s+to)\s+([a-z][a-z'\-]{2,})\b/g;
+    personContextPattern.lastIndex = 0;
+    let personMatch: RegExpExecArray | null;
+    while ((personMatch = personContextPattern.exec(normalized)) !== null) {
+      const phrase = this._toTitleCase(personMatch[1]?.trim() ?? '');
+      if (phrase) candidates.push(phrase);
+    }
+
+    return Array.from(new Set(candidates));
+  }
+
+  /**
    * Normalize extracted candidate entities.
    */
   private _sanitizeEntityName(entity: string): string {
@@ -254,6 +304,14 @@ export class ExtractionService {
       .replace(/^\s+|\s+$/g, '')
       .replace(/[.,!?;:]+$/g, '')
       .replace(/\s{2,}/g, ' ');
+  }
+
+  private _toTitleCase(value: string): string {
+    return value
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   }
 
   /**

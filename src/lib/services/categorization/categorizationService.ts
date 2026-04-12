@@ -1,10 +1,5 @@
 import type { DossierType, Entity } from '$types';
-import {
-  ambiguousConfidenceThreshold,
-  categorizationRules,
-  dndIndicatorKeywords,
-  lowEvidenceThreshold
-} from '$lib/data/categorizationRules';
+import { getTaggingParams } from '$stores/taggingParamsStore';
 
 export interface CategorizationResult {
   type: DossierType;
@@ -18,6 +13,7 @@ export class CategorizationService {
     const entityName = typeof entity === 'string' ? entity : entity.name;
     const lowerName = entityName.toLowerCase();
     const lowerContext = context.toLowerCase();
+    const { rules, thresholds, indicators } = getTaggingParams();
 
     const scores: Record<DossierType, number> = {
       NPC: 5,
@@ -26,62 +22,58 @@ export class CategorizationService {
       STORY_PLOT: 0
     };
 
-    for (const rule of categorizationRules) {
+    for (const rule of rules) {
       const target = rule.type;
 
       if (rule.nameStartsWith?.some(prefix => lowerName.startsWith(prefix))) {
-        scores[target] += rule.scoreWeights.nameStartsWith;
+        scores[target] += rule.weights.nameStartsWith;
       }
 
-      if (rule.nameContains?.some(part => lowerName.includes(part.trim()))) {
-        scores[target] += rule.scoreWeights.nameContains;
+      if (rule.nameContains?.some(part => lowerName.includes(part))) {
+        scores[target] += rule.weights.nameContains;
       }
 
       if (rule.nameEndsWith?.some(suffix => lowerName.endsWith(suffix))) {
-        scores[target] += rule.scoreWeights.nameEndsWith;
+        scores[target] += rule.weights.nameEndsWith;
       }
 
-      if (rule.contextKeywords) {
-        for (const keyword of rule.contextKeywords) {
-          if (lowerContext.includes(keyword)) {
-            scores[target] += rule.scoreWeights.contextKeyword;
-          }
+      for (const keyword of (rule.contextKeywords ?? [])) {
+        if (lowerContext.includes(keyword)) {
+          scores[target] += rule.weights.contextKeyword;
         }
       }
 
-      if (rule.contextPhrases) {
-        for (const phrase of rule.contextPhrases) {
-          if (lowerContext.includes(phrase)) {
-            scores[target] += rule.scoreWeights.contextPhrase;
-          }
+      for (const phrase of (rule.contextPhrases ?? [])) {
+        if (lowerContext.includes(phrase)) {
+          scores[target] += rule.weights.contextPhrase;
         }
       }
     }
 
     if (
-      dndIndicatorKeywords.raceTerms.some(term => lowerContext.includes(term)) ||
-      dndIndicatorKeywords.classTerms.some(term => lowerContext.includes(term))
+      indicators.raceTerms.some(term => lowerContext.includes(term)) ||
+      indicators.classTerms.some(term => lowerContext.includes(term))
     ) {
-      scores.NPC += 10;
-      scores.PLAYER_CHARACTER += 8;
+      scores.NPC += indicators.raceClassNpcBonus;
+      scores.PLAYER_CHARACTER += indicators.raceClassPcBonus;
     }
 
     if (
-      dndIndicatorKeywords.locationPrepositions.some(prep =>
+      indicators.locationPrepositions.some(prep =>
         lowerContext.includes(`${prep} ${lowerName}`)
       )
     ) {
-      scores.LOCATION += 14;
+      scores.LOCATION += indicators.locationPrepBonus;
     }
 
     const ranked = (Object.entries(scores) as Array<[DossierType, number]>).sort((a, b) => b[1] - a[1]);
     const [bestType, bestScore] = ranked[0];
     const secondScore = ranked[1]?.[1] ?? 0;
 
-    if (bestScore < lowEvidenceThreshold) {
+    if (bestScore < thresholds.lowEvidence) {
       return {
         type: 'NPC',
-        confidence: 25,
+        confidence: 32,
         scores,
         reason: 'Low evidence in context; using NPC fallback.'
       };
@@ -90,7 +82,7 @@ export class CategorizationService {
     const scoreDelta = bestScore - secondScore;
     let confidence = Math.min(100, Math.round(bestScore * 1.8));
 
-    if (scoreDelta < ambiguousConfidenceThreshold) {
+    if (scoreDelta < thresholds.ambiguous) {
       confidence = Math.max(35, confidence - 25);
     }
 
@@ -99,7 +91,7 @@ export class CategorizationService {
       confidence,
       scores,
       reason:
-        scoreDelta < ambiguousConfidenceThreshold
+        scoreDelta < thresholds.ambiguous
           ? `Ambiguous result; ${bestType} selected by small margin (${scoreDelta}).`
           : `${bestType} selected by strongest rule match.`
     };

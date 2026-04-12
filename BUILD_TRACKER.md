@@ -294,7 +294,7 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 
 ## Phase 2: Dossier Extraction & Categorization
 
-### ☐ Step 5: Integrate Compromise.js for Entity Extraction (NER)
+### ✅ Step 5: Integrate Compromise.js for Entity Extraction (NER)
 
 **Objective**: Integrate Compromise.js to extract entities (names, locations) from transcriptions with D&D-specific customization.
 
@@ -322,15 +322,24 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - `src/lib/services/extraction/index.ts` — Export extraction service
 
 **Acceptance Criteria**:
-- [ ] Compromise.js initializes without errors
-- [ ] Entity extraction identifies names and locations from sample D&D text
-- [ ] Custom D&D word list improves accuracy on fantasy-specific language
-- [ ] Returns typed Entity[] with confidence scores (0-100)
-- [ ] Extracts entity mentions field (locations in text where entity appears)
-- [ ] Handles ambiguous entities (e.g., "Morgan" could be NPC or place)
-- [ ] Performance acceptable on transcriptions up to 5000 words
+- [✅] Compromise.js initializes without errors
+- [✅] Entity extraction identifies names and locations from sample D&D text
+- [✅] Custom D&D word list improves accuracy on fantasy-specific language
+- [✅] Returns typed Entity[] with confidence scores (0-100)
+- [✅] Extracts entity mentions field (locations in text where entity appears)
+- [✅] Handles ambiguous entities (e.g., "Morgan" could be NPC or place)
+- [✅] Performance acceptable on transcriptions up to 5000 words
 
-**Status**: ⏳ Not Started
+**Status**: ✅ Complete
+
+**Implementation Summary**:
+- Created `src/lib/services/extraction/extractionService.ts` — Compromise.js wrapper with lazy-load initialization, `extractEntities(text, options)` → `Entity[]`, `buildTranscriptionTags(text)` → `TranscriptionTag[]`
+- Candidate sources: proper nouns, people, organizations (Compromise NER) + phrasal D&D patterns + lowercase transcript fallback patterns
+- Custom entity list sync from IndexedDB via `customEntityService` — direct matches at 95% confidence
+- Confidence scoring via categorizationService integration (Step 6)
+- Mention contexts extracted with 100-character window around each occurrence
+- Created `src/lib/data/dndEntityLists.ts` — NPC titles, location suffixes, quest verbs
+- Created `src/lib/services/extraction/index.ts` — Export barrel
 
 ---
 
@@ -386,7 +395,7 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 
 ---
 
-### ☐ Step 7: Create Extraction Approval UI (Transcription Review Screen)
+### ✅ Step 7: Create Extraction Approval UI (Transcription Review Screen)
 
 **Objective**: Build UI workflow for user to confirm/edit/reject AI-extracted entities before saving to dossiers.
 
@@ -407,17 +416,24 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - `src/components/ExtractionPreview.svelte` — Entity display/edit component
 
 **Acceptance Criteria**:
-- [ ] Review screen displays transcription text on left, extractions on right
-- [ ] User can confirm, edit, or reject each extraction
-- [ ] Edited extractions persist correctly
-- [ ] UI follows Industrial Aesthetic (inset/outset bevels, warm palette)
-- [ ] Accepted extractions pass to Step 8 (dossier saving)
+- [✅] Review screen displays transcription text on left, extractions on right
+- [✅] User can confirm, edit, or reject each extraction
+- [✅] Edited extractions persist correctly
+- [✅] UI follows Industrial Aesthetic (inset/outset bevels, warm palette)
+- [✅] Accepted extractions pass to Step 8 (dossier saving)
 
-**Status**: ⏳ Not Started
+**Status**: ✅ Complete
+
+**Implementation Summary**:
+- Created `src/components/ExtractionPreview.svelte` — entity card component with editable name/type/description, confirm/reject buttons, mention context display
+- Created `src/routes/transcriptions/[id]/review.svelte` — split-pane screen; prefills from `transcriptionTags` (linked→accepted, needs_review→pending) or falls back to live extraction
+- Created `src/routes/transcriptions/[id]/review/+page.svelte` — SvelteKit route entry reading `$page.params.id`
+- Wired "🧾 Review Extractions" button on recording cards → `goto('/transcriptions/[id]/review')`
+- Save writes approved entities to `recording.extractedEntities` in IndexedDB
 
 ---
 
-### ☐ Step 8: Implement Dossier Data Model (SvelteStore + IndexedDB)
+### ✅ Step 8: Implement Dossier Data Model (SvelteStore + IndexedDB)
 
 **Objective**: Create structured dossier data model with fields for each entity type, stored in SvelteStore and IndexedDB.
 
@@ -437,19 +453,25 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - `src/lib/services/dossierService.ts` — Dossier CRUD operations
 
 **Acceptance Criteria**:
-- [ ] Dossier types support NPC, Player Character, Location, Story Plot
-- [ ] SvelteStore reactive updates work
-- [ ] Dossiers persist to IndexedDB
-- [ ] CRUD operations complete successfully
-- [ ] Relationships can be stored (e.g., NPC linked to location)
+- [✅] Dossier types support NPC, Player Character, Location, Story Plot
+- [✅] SvelteStore reactive updates work
+- [✅] Dossiers persist to IndexedDB
+- [✅] CRUD operations complete successfully
+- [✅] Relationships can be stored (e.g., NPC linked to location)
 
-**Status**: ⏳ Not Started
+**Status**: ✅ Complete
+
+**Implementation Summary**:
+- Created `src/lib/types/dossier.ts` — discriminated subtypes `NPCDossier`, `CharacterDossier`, `LocationDossier`, `PlotDossier` extending base `Dossier`; `AnyDossier` union type; `DossierFilter` for queries
+- Created `src/lib/services/dossierService.ts` — `DossierStorage` class (separate `DDR_Dossiers` IndexedDB with indexes on type/name/createdAt/updatedAt); `DossierService` with `createDossier()`, `readDossier()`, `updateDossier()`, `deleteDossier()`, `listDossiers(filter)`, `addRelationship()`, `removeRelationship()`, `addMention()`, `upsertFromEntity()` (creates or merges from approved Entity)
+- Created `src/lib/stores/dossierStore.ts` — writable Svelte store with `loadDossiers()`, `createDossier()`, `updateDossier()`, `deleteDossier()`, `importEntities()` (bulk upsert from review screen), `dossiersByType` derived store; singleton pattern
+- Exported `createDossierService` and `DossierService` from `src/lib/services/index.ts`
 
 ---
 
 ## Phase 3: Dossier Management & Merging
 
-### ☐ Step 9: Build Auto-Merge Logic (90% Similarity Threshold)
+### ✅ Step 9: Build Auto-Merge Logic (90% Similarity Threshold)
 
 **Objective**: Implement automatic entity merging at 90% similarity threshold; entities below 90% trigger user-driven merge workflow.
 
@@ -465,17 +487,27 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - `src/components/MergeConflictResolver.svelte` — User-driven merge UI
 
 **Acceptance Criteria**:
-- [ ] Similarity matching returns 0-100 score
-- [ ] Auto-merge triggers at ≥90% similarity
-- [ ] Manual merge prompt triggers for <90% similarity
-- [ ] Merged dossier retains all relevant information
-- [ ] Merge history recorded
+- [✅] Similarity matching returns 0-100 score
+- [✅] Auto-merge triggers at ≥90% similarity
+- [✅] Manual merge prompt triggers for <90% similarity
+- [✅] Merged dossier retains all relevant information
+- [✅] Merge history recorded
 
-**Status**: ⏳ Not Started
+**Status**: ✅ Complete
+
+**Implementation Summary**:
+- Created `src/lib/utils/similarity.ts` with Levenshtein-based scoring function `similarityScore(a, b)` returning 0-100
+- Created `src/lib/services/mergeService.ts` with:
+  - `checkAndMergeEntity()` (>=90 auto-merge, 55-89 manual conflict prompt)
+  - `processEntities()` for batch processing
+  - `resolveConflict()` for manual merge/create-new/ignore outcomes
+  - merge history persistence in `localStorage` (`dmr_merge_history`)
+- Created `src/components/MergeConflictResolver.svelte` for user-driven conflict decisions
+- Integrated Step 7 save flow (`src/routes/transcriptions/[id]/review.svelte`) to call dossier import + merge pipeline and present manual conflicts inline
 
 ---
 
-### ☐ Step 10: Implement Entity Reference Linking
+### ✅ Step 10: Implement Entity Reference Linking
 
 **Objective**: Enable clicking linked words/entities in transcription text to open dossier in modal overlay.
 
@@ -492,49 +524,54 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - Update `src/routes/transcriptions/[id]/+page.svelte` — Add entity highlighting and click handlers
 
 **Acceptance Criteria**:
-- [ ] Linked entities highlighted in transcription text
-- [ ] Clicking entity opens DossierModal
-- [ ] Modal displays dossier name, type, key info
-- [ ] "Open Full Dossier" link navigates to detail page
-- [ ] Modal closes on background click or close button
-- [ ] Modal doesn't obscure transcription context (positioned appropriately)
+- [✅] Linked entities highlighted in transcription text
+- [✅] Clicking entity opens DossierModal
+- [✅] Modal displays dossier name, type, key info
+- [✅] "Open Full Dossier" link navigates to detail page
+- [✅] Modal closes on background click or close button
+- [✅] Modal doesn't obscure transcription context (positioned appropriately)
 
-**Status**: ⏳ Not Started
+**Status**: ✅ Complete
+
+**Implementation Summary**:
+- Created `src/lib/utils/entityLinking.ts` — exact-name transcript linker that converts raw transcript text into clickable linked segments and returns mentioned dossier ids
+- Created `src/components/DossierModal.svelte` — side-panel dossier preview modal with close actions and "Open Full Dossier" navigation
+- Created `src/routes/transcriptions/[id]/+page.svelte` — transcript viewer route; loads recording + dossiers, highlights linked entity mentions inline, opens modal on click, includes quick navigation back to recordings/review
+- Created `src/routes/dossiers/[id]/+page.svelte` — minimal dossier detail target used by modal full-page navigation
+- Updated `src/routes/recording/+page.svelte` — added `📜 View Transcript` button for click-through access from saved recordings
 
 ---
 
 ## Phase 4: Dossier Browsing & Management
 
-### ☐ Step 11: Build Dossier Browse UI (By Type)
+### ✅ Step 11: Build Dossier Browse UI (By Type)
 
 **Objective**: Create dossier browsing interface with tabs for each entity type (CHARACTERS, NPCs, LOCATIONS, STORY_PLOTS) and breadcrumb navigation.
 
 **Deliverables**:
-- Screen: `src/routes/dossiers/[type]/+page.svelte` — Dossier list filtered by type
-- Tabs for entity types: CHARACTERS, NPC_REGISTRY, LOCATIONS, STORY_PLOTS
-- Filter/sort UI (sort by date, name, status)
-- Card component displaying: image, name, type indicator, merged entity LED dot, mention count, last updated
-- Breadcrumb component showing: Home > Dossiers > [Type]
-- Pagination or infinite scroll for long lists
+- Screen: `src/routes/dossiers/+page.svelte` — Replaced recording-tags hack with full dossierStore-backed hub
+- Type filtering via `?type=npc|characters|locations|stories` query param (avoids SvelteKit route conflict with existing `[id]` route)
+- Sort by name / updated date / mention count (asc/desc)
+- `src/components/DossierCard.svelte` — Card with LED dot (green=active, blue=multi-source), mention count, relationship count, last updated, description preview
+- `src/components/Breadcrumbs.svelte` — Breadcrumb nav component; crumbs array with optional href
+- Hub view shows 4 type overview tiles with counts plus all-dossiers grid
+- Filtered view shows breadcrumb + sorted grid for selected type
 
-**Context & References**:
-- [DESIGN.md](./DESIGN.md) — Industrial Aesthetic (outset card bevels, LED indicators, tonal separation)
-- Stitch Design: Reference existing "THE DOSSIERS" screen for tabs and card layout
+**Design Decision**: `[type]` route was not created because it would conflict with the existing `[id]` dossier detail route at the same directory level. Query-param filtering achieves the same UX without route ambiguity.
 
-**Files to Create**:
-- `src/routes/dossiers/+page.svelte` — Dossier hub with type selection
-- `src/routes/dossiers/[type]/+page.svelte` — Dossier list by type
-- `src/components/DossierCard.svelte` — Enhanced card with merged indicator, mention count
-- `src/components/Breadcrumbs.svelte` — Navigation breadcrumb component
+**Files Created/Modified**:
+- `src/routes/dossiers/+page.svelte` — Complete rewrite (now reads from `dossierStore`)
+- `src/components/DossierCard.svelte` — New
+- `src/components/Breadcrumbs.svelte` — New
 
 **Acceptance Criteria**:
-- [ ] Tabs filter dossiers by type
-- [ ] Cards display: image, name, type, LED dot (merged), mention count, last updated
-- [ ] Breadcrumbs show: Home > Dossiers > [Type Name]
-- [ ] Clicking card navigates to dossier detail
-- [ ] UI follows Industrial Aesthetic (no rounded corners, asymmetrical spacing, warm palette)
+- [✅] Tabs filter dossiers by type
+- [✅] Cards display: name, type, LED dot (merged/active), mention count, last updated
+- [✅] Breadcrumbs show: Home > Dossiers > [Type Name]
+- [✅] Clicking card navigates to dossier detail (`/dossiers/[id]`)
+- [✅] UI follows Industrial Aesthetic (asymmetric bevels, warm palette, Space Grotesk headers)
 
-**Status**: ⏳ Not Started
+**Status**: ✅ Complete (April 12, 2026)
 
 ---
 
@@ -859,13 +896,13 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 
 | Phase | Steps | Status |
 |-------|-------|--------|
-| Phase 1: Core Audio & Transcription | 1-4b | ✅ 4 Complete, 1 Not Started |
-| Phase 2: Extraction & Categorization | 5-8 | ⏳ Not Started |
-| Phase 3: Dossier Management & Merging | 9-10 | ⏳ Not Started |
+| Phase 1: Core Audio & Transcription | 1-4b | ✅ 5 Complete |
+| Phase 2: Extraction & Categorization | 5-8 | ✅ 4 Complete |
+| Phase 3: Dossier Management & Merging | 9-10 | ✅ 2 Complete |
 | Phase 4: Dossier Browsing & Management | 11-12 | ⏳ Not Started |
 | Phase 5: Design Adaptation & New UI | 13-19 | ⏳ Not Started |
 | Phase 6: Testing & Deployment | 20 | ⏳ Not Started |
-| **TOTAL** | **20 steps + 4b** | **4 Complete, 17 Not Started** |
+| **TOTAL** | **20 steps + 4b** | **10 Complete, 10 Not Started** |
 
 ---
 

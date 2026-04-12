@@ -1,451 +1,462 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { createStorageService } from '$services';
-  import type { Recording, TranscriptionTag } from '$lib/types';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
+  import {
+    dossiers,
+    dossiersByType,
+    dossiersLoading,
+    dossiersError,
+    ensureLoaded,
+    loadDossiers
+  } from '$stores/dossierStore';
+  import DossierCard from '../../components/DossierCard.svelte';
+  import Breadcrumbs from '../../components/Breadcrumbs.svelte';
+  import type { DossierType } from '$lib/types';
+  import type { AnyDossier } from '$lib/types/dossier';
 
-  type DossierCard = {
-    key: string;
-    name: string;
-    type: TranscriptionTag['type'];
-    tags: Array<{
-      recordingId: string;
-      recordingTimestamp: number;
-      status: TranscriptionTag['status'];
-      confidence: number;
-      snippets: string[];
-      transcript: string;
-    }>;
+  // ── Type meta ──────────────────────────────────────────────────
+
+  const TYPES: DossierType[] = ['NPC', 'PLAYER_CHARACTER', 'LOCATION', 'STORY_PLOT'];
+
+  const TYPE_META: Record<DossierType, { slug: string; label: string; desc: string }> = {
+    NPC: {
+      slug: 'npc',
+      label: 'NPC Registry',
+      desc: 'Non-player characters, villains, and allies'
+    },
+    PLAYER_CHARACTER: {
+      slug: 'characters',
+      label: 'Characters',
+      desc: 'Player characters and their histories'
+    },
+    LOCATION: {
+      slug: 'locations',
+      label: 'Locations',
+      desc: 'Places, dungeons, towns, and regions'
+    },
+    STORY_PLOT: {
+      slug: 'stories',
+      label: 'Story Threads',
+      desc: 'Active quests, mysteries, and plot arcs'
+    }
   };
 
-  let dossiers: DossierCard[] = [];
-  let loading = true;
-  let error = '';
-  let selectedTranscriptModal: { transcript: string; entityName: string; date: string } | null = null;
+  const SLUG_TO_TYPE: Record<string, DossierType> = {
+    npc: 'NPC',
+    characters: 'PLAYER_CHARACTER',
+    locations: 'LOCATION',
+    stories: 'STORY_PLOT'
+  };
+
+  // ── Sort state ──────────────────────────────────────────────────
+
+  type SortKey = 'name' | 'updatedAt' | 'mentions';
+  let sortKey: SortKey = 'name';
+  let sortDir: 'asc' | 'desc' = 'asc';
+
+  // ── Reactive: current type filter from URL ──────────────────────
+
+  $: activeSlug = $page.url.searchParams.get('type') ?? null;
+  $: activeType = activeSlug ? (SLUG_TO_TYPE[activeSlug] ?? null) : null;
+
+  $: filteredDossiers = (() => {
+    const all = activeType ? ($dossiersByType[activeType] ?? []) : $dossiers;
+    return [...all].sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === 'name') cmp = a.name.localeCompare(b.name);
+      else if (sortKey === 'updatedAt') cmp = a.updatedAt - b.updatedAt;
+      else if (sortKey === 'mentions') cmp = a.mentions.length - b.mentions.length;
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  })();
+
+  $: breadcrumbs = (() => {
+    const base = [{ label: 'Home', href: '/' }, { label: 'Dossiers', href: '/dossiers' }];
+    if (activeType) {
+      base.push({ label: TYPE_META[activeType].label });
+    }
+    return base;
+  })();
+
+  // ── Actions ─────────────────────────────────────────────────────
 
   onMount(async () => {
-    await loadDossiers();
+    await ensureLoaded();
   });
 
-  function openTranscriptModal(transcript: string, entityName: string, date: string) {
-    selectedTranscriptModal = { transcript, entityName, date };
+  function selectType(slug: string) {
+    goto(`/dossiers?type=${slug}`);
   }
 
-  function closeTranscriptModal() {
-    selectedTranscriptModal = null;
+  function clearType() {
+    goto('/dossiers');
   }
 
-  function onModalOverlayClick(event: MouseEvent) {
-    if (event.target === event.currentTarget) {
-      closeTranscriptModal();
+  function openDossier(dossier: AnyDossier) {
+    goto(`/dossiers/${dossier.id}`);
+  }
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortKey = key;
+      sortDir = 'asc';
     }
-  }
-
-  async function loadDossiers() {
-    loading = true;
-    error = '';
-
-    try {
-      const storage = createStorageService();
-      await storage.initialize();
-      const recordings = await storage.listRecordings({ limit: 200 });
-      dossiers = buildDossiers(recordings);
-    } catch (e) {
-      error = `Failed to load dossier links: ${e}`;
-    } finally {
-      loading = false;
-    }
-  }
-
-  function buildDossiers(recordings: Recording[]): DossierCard[] {
-    const grouped = new Map<string, DossierCard>();
-
-    for (const recording of recordings) {
-      const tags = recording.transcriptionTags || [];
-      for (const tag of tags) {
-        const key = `${tag.type}::${tag.name.toLowerCase()}`;
-        if (!grouped.has(key)) {
-          grouped.set(key, {
-            key,
-            name: tag.name,
-            type: tag.type,
-            tags: [],
-          });
-        }
-
-        const card = grouped.get(key);
-        if (!card) continue;
-
-        card.tags.push({
-          recordingId: recording.id,
-          recordingTimestamp: recording.timestamp,
-          status: tag.status,
-          confidence: tag.confidence,
-          snippets: tag.mentionContexts,
-          transcript: recording.transcription || '',
-        });
-      }
-    }
-
-    return Array.from(grouped.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }
-
-  function typeLabel(type: TranscriptionTag['type']): string {
-    if (type === 'PLAYER_CHARACTER') return 'Character';
-    if (type === 'LOCATION') return 'Location';
-    if (type === 'STORY_PLOT') return 'Story Device';
-    return 'NPC';
-  }
-
-  function formatDate(timestamp: number): string {
-    return new Date(timestamp).toLocaleString();
   }
 </script>
 
-<div class="dossiers-container">
-  <div class="page-header">
-    <h2>Dossier Transcript Links</h2>
-    <p class="page-desc">Each dossier shows transcript snippets where it appears. Unlinked tags are marked for review.</p>
-    <button class="reload-btn" type="button" on:click={loadDossiers}>Reload</button>
-  </div>
+<!-- ─── DOSSIER BROWSE PAGE ─── -->
+<div class="page">
 
-  {#if loading}
-    <div class="panel">Loading dossier links...</div>
-  {:else if error}
-    <div class="panel error">{error}</div>
-  {:else if dossiers.length === 0}
-    <div class="panel">No dossier tags found yet. Save a transcription first.</div>
-  {:else}
-    <div class="dossier-grid">
-      {#each dossiers as dossier (dossier.key)}
-        <article class="dossier-card">
-          <header>
-            <h3>{dossier.name}</h3>
-            <span class="type-pill">{typeLabel(dossier.type)}</span>
-          </header>
-
-          <div class="mentions">
-            {#each dossier.tags as mention}
-              <div class="mention-row">
-                <div class="meta-row">
-                  <span>{formatDate(mention.recordingTimestamp)}</span>
-                  <span class="status" class:review={mention.status === 'needs_review'}>
-                    {mention.status === 'linked' ? 'Linked' : 'Needs review'}
-                  </span>
-                </div>
-                {#if mention.snippets.length > 0}
-                  {#each mention.snippets as snippet}
-                    <p class="snippet">{snippet}</p>
-                  {/each}
-                {:else}
-                  <p class="snippet">{mention.transcript}</p>
-                {/if}
-                {#if mention.transcript}
-                  <button 
-                    class="view-transcript-btn" 
-                    type="button"
-                    on:click={() => openTranscriptModal(mention.transcript, dossier.name, formatDate(mention.recordingTimestamp))}
-                  >
-                    View Full Transcript
-                  </button>
-                {/if}
-              </div>
-            {/each}
-          </div>
-        </article>
-      {/each}
+  <!-- Breadcrumbs (only when filtering) -->
+  {#if activeType}
+    <div class="crumb-row">
+      <Breadcrumbs crumbs={breadcrumbs} />
     </div>
   {/if}
-</div>
 
-{#if selectedTranscriptModal}
-  <div
-    class="modal-overlay"
-    on:click={onModalOverlayClick}
-    on:keydown={(e) => e.key === 'Escape' && closeTranscriptModal()}
-    role="button"
-    tabindex="0"
-  >
-    <div class="modal-content" role="dialog" aria-modal="true" tabindex="-1">
-      <div class="modal-header">
-        <h3>{selectedTranscriptModal.entityName}</h3>
-        <button class="modal-close" type="button" on:click={closeTranscriptModal}>×</button>
-      </div>
-      <div class="modal-date">
-        {selectedTranscriptModal.date}
-      </div>
-      <div class="modal-transcript">
-        <p>{selectedTranscriptModal.transcript}</p>
-      </div>
-      <div class="modal-footer">
-        <button class="modal-btn" type="button" on:click={closeTranscriptModal}>Close</button>
-      </div>
+  <!-- Page header -->
+  <div class="page-header">
+    <div class="header-left">
+      {#if activeType}
+        <button class="back-btn" type="button" on:click={clearType}>← All Dossiers</button>
+        <h2>{TYPE_META[activeType].label}</h2>
+      {:else}
+        <h2>Dossiers</h2>
+        <p class="page-desc">Browse all tracked entities from your sessions.</p>
+      {/if}
+    </div>
+    <div class="header-right">
+      <button
+        class="reload-btn"
+        type="button"
+        on:click={() => loadDossiers()}
+        disabled={$dossiersLoading}
+      >Refresh</button>
     </div>
   </div>
-{/if}
+
+  {#if $dossiersLoading}
+    <div class="status-panel">Loading dossiers…</div>
+  {:else if $dossiersError}
+    <div class="status-panel error">{$dossiersError}</div>
+
+  <!-- HUB VIEW: no type filter — show type overview tiles -->
+  {:else if !activeType}
+    <div class="type-grid">
+      {#each TYPES as t (t)}
+        {@const meta = TYPE_META[t]}
+        {@const count = $dossiersByType[t]?.length ?? 0}
+        <button
+          class="type-tile"
+          type="button"
+          on:click={() => selectType(meta.slug)}
+        >
+          <div class="tile-count">{count}</div>
+          <div class="tile-label">{meta.label}</div>
+          <div class="tile-desc">{meta.desc}</div>
+          <div class="tile-arrow">→</div>
+        </button>
+      {/each}
+    </div>
+
+    <!-- Quick all-dossiers overview if any exist -->
+    {#if $dossiers.length > 0}
+      <div class="section-header">
+        <h3 class="section-title">All Dossiers <span class="count-badge">{$dossiers.length}</span></h3>
+        <div class="sort-controls">
+          <span class="sort-label">Sort:</span>
+          {#each ([['name', 'Name'], ['updatedAt', 'Updated'], ['mentions', 'Mentions']] as const) as [key, lbl]}
+            <button
+              class="sort-btn"
+              class:active={sortKey === key}
+              type="button"
+              on:click={() => toggleSort(key)}
+            >{lbl} {sortKey === key ? (sortDir === 'asc' ? '↑' : '↓') : ''}</button>
+          {/each}
+        </div>
+      </div>
+      <div class="dossier-grid">
+        {#each filteredDossiers as dossier (dossier.id)}
+          <DossierCard {dossier} on:click={() => openDossier(dossier)} />
+        {/each}
+      </div>
+    {:else}
+      <div class="status-panel">No dossiers yet. Save some transcription extractions to create them.</div>
+    {/if}
+
+  <!-- FILTERED VIEW: type tab selected -->
+  {:else}
+    {@const count = filteredDossiers.length}
+    <div class="section-header">
+      <h3 class="section-title">
+        {count} {count === 1 ? 'entry' : 'entries'}
+      </h3>
+      <div class="sort-controls">
+        <span class="sort-label">Sort:</span>
+        {#each ([['name', 'Name'], ['updatedAt', 'Updated'], ['mentions', 'Mentions']] as const) as [key, lbl]}
+          <button
+            class="sort-btn"
+            class:active={sortKey === key}
+            type="button"
+            on:click={() => toggleSort(key)}
+          >{lbl} {sortKey === key ? (sortDir === 'asc' ? '↑' : '↓') : ''}</button>
+        {/each}
+      </div>
+    </div>
+
+    {#if filteredDossiers.length === 0}
+      <div class="status-panel">No {TYPE_META[activeType].label.toLowerCase()} dossiers yet.</div>
+    {:else}
+      <div class="dossier-grid">
+        {#each filteredDossiers as dossier (dossier.id)}
+          <DossierCard {dossier} showType={false} on:click={() => openDossier(dossier)} />
+        {/each}
+      </div>
+    {/if}
+  {/if}
+
+</div>
 
 <style>
-  .dossiers-container {
+  .page {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.25rem;
     padding: 2rem;
+    background: #fef9f0;
+    min-height: 0;
+  }
+
+  .crumb-row {
+    margin-bottom: -0.5rem;
+  }
+
+  /* ── Page header ── */
+  .page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
   }
 
   .page-header h2 {
     font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
     margin: 0;
     color: #363226;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 
   .page-desc {
     font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
     color: #6b6250;
-    margin: 0.25rem 0 0.75rem;
+    margin: 0;
+  }
+
+  .back-btn {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0;
+    background: none;
+    border: none;
+    color: #9a442d;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .back-btn:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
   .reload-btn {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    padding: 0.45rem 0.9rem;
+    padding: 0.4rem 0.8rem;
     cursor: pointer;
-    background: #9a442d;
+    background: #363226;
     color: #fef9f0;
-    border-top: 1px solid #c46a50;
-    border-left: 1px solid #c46a50;
-    border-bottom: 1px solid #5a2818;
-    border-right: 1px solid #5a2818;
+    border-top: 1px solid #5a5245;
+    border-left: 1px solid #5a5245;
+    border-bottom: 1px solid #1a180f;
+    border-right: 1px solid #1a180f;
   }
 
-  .panel {
+  .reload-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* ── Status panel ── */
+  .status-panel {
     background: #ffffff;
     border-top: 1px solid #eee8d8;
     border-left: 1px solid #eee8d8;
-    border-bottom: 1px solid #363226;
-    border-right: 1px solid #363226;
-    padding: 1rem;
+    border-bottom: 2px solid #363226;
+    border-right: 2px solid #363226;
+    padding: 1.25rem;
     color: #6b6250;
     font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
   }
 
-  .panel.error {
-    border-left: 4px solid #9a442d;
+  .status-panel.error {
     color: #9a442d;
+    border-left: 4px solid #9a442d;
   }
 
-  .dossier-grid {
+  /* ── Type overview grid ── */
+  .type-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1rem;
   }
 
-  .dossier-card {
+  .type-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+    padding: 1.25rem;
     background: #ffffff;
     border-top: 1px solid #eee8d8;
     border-left: 1px solid #eee8d8;
-    border-bottom: 1px solid #363226;
-    border-right: 1px solid #363226;
-    padding: 1rem;
+    border-bottom: 3px solid #363226;
+    border-right: 3px solid #363226;
+    cursor: pointer;
+    text-align: left;
+    transition: box-shadow 0.1s;
+    position: relative;
   }
 
-  .dossier-card header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
+  .type-tile:hover {
+    box-shadow: 3px 3px 0 #9a442d;
   }
 
-  .dossier-card h3 {
+  .tile-count {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 1rem;
-    margin: 0;
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: #9a442d;
+    line-height: 1;
+  }
+
+  .tile-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
     color: #363226;
   }
 
-  .type-pill {
-    font-size: 0.6875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 0.15rem 0.4rem;
-    border: 1px solid #d4a574;
-    color: #7d6c47;
-    background: #fff7ec;
-  }
-
-  .mentions {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .mention-row {
-    border-left: 3px solid #d1dbe8;
-    background: #f8fbff;
-    padding: 0.5rem 0.6rem;
-  }
-
-  .meta-row {
-    display: flex;
-    justify-content: space-between;
+  .tile-desc {
+    font-family: 'Inter', sans-serif;
     font-size: 0.75rem;
     color: #6b6250;
-    margin-bottom: 0.35rem;
+    line-height: 1.4;
   }
 
-  .status {
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #4b654e;
-    font-weight: 600;
+  .tile-arrow {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    font-size: 1rem;
+    color: #b0a489;
   }
 
-  .status.review {
-    color: #9a442d;
-  }
-
-  .snippet {
-    margin: 0.3rem 0;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.875rem;
-    line-height: 1.45;
-    color: #363226;
-  }
-
-  .view-transcript-btn {
-    margin-top: 0.5rem;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.6875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 0.3rem 0.6rem;
-    cursor: pointer;
-    background: #d4a574;
-    color: #ffffff;
-    border-top: 1px solid #e8c8a0;
-    border-left: 1px solid #e8c8a0;
-    border-bottom: 1px solid #8b6f4a;
-    border-right: 1px solid #8b6f4a;
-    transition: all 0.15s ease;
-  }
-
-  .view-transcript-btn:hover {
-    background: #c9985f;
-  }
-
-  .modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+  /* ── Section header + sort ── */
+  .section-header {
     display: flex;
     align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
-
-  .modal-content {
-    background: #ffffff;
-    border-top: 1px solid #eee8d8;
-    border-left: 1px solid #eee8d8;
-    border-bottom: 1px solid #363226;
-    border-right: 1px solid #363226;
-    border-radius: 2px;
-    max-width: 700px;
-    width: 90%;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  }
-
-  .modal-header {
-    display: flex;
     justify-content: space-between;
-    align-items: center;
-    padding: 1rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding-bottom: 0.5rem;
     border-bottom: 1px solid #eee8d8;
   }
 
-  .modal-header h3 {
+  .section-title {
     font-family: 'Space Grotesk', sans-serif;
-    font-size: 1.25rem;
-    margin: 0;
-    color: #363226;
-    flex: 1;
-  }
-
-  .modal-close {
-    background: none;
-    border: none;
-    font-size: 2rem;
-    cursor: pointer;
-    color: #6b6250;
-    padding: 0;
-    width: 2rem;
-    height: 2rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color 0.15s ease;
-  }
-
-  .modal-close:hover {
-    color: #363226;
-  }
-
-  .modal-date {
-    padding: 0.5rem 1rem;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.75rem;
-    color: #9a9080;
-    border-bottom: 1px solid #f0e8d8;
-  }
-
-  .modal-transcript {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1rem;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.95rem;
-    line-height: 1.6;
-    color: #363226;
-  }
-
-  .modal-transcript p {
-    margin: 0;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-  }
-
-  .modal-footer {
-    padding: 1rem;
-    border-top: 1px solid #eee8d8;
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  .modal-btn {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    padding: 0.45rem 0.9rem;
-    cursor: pointer;
-    background: #9a442d;
-    color: #fef9f0;
-    border-top: 1px solid #c46a50;
-    border-left: 1px solid #c46a50;
-    border-bottom: 1px solid #5a2818;
-    border-right: 1px solid #5a2818;
-    transition: all 0.15s ease;
+    color: #363226;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
-  .modal-btn:hover {
-    background: #8a3820;
+  .count-badge {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.4rem;
+    background: #eee8d8;
+    color: #6b6250;
+  }
+
+  .sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .sort-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #9a8f7e;
+  }
+
+  .sort-btn {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.25rem 0.55rem;
+    cursor: pointer;
+    background: #fef9f0;
+    color: #6b6250;
+    border-top: 1px solid #eee8d8;
+    border-left: 1px solid #eee8d8;
+    border-bottom: 1px solid #c8bfae;
+    border-right: 1px solid #c8bfae;
+  }
+
+  .sort-btn.active {
+    background: #363226;
+    color: #fef9f0;
+    border-top: 1px solid #5a5245;
+    border-left: 1px solid #5a5245;
+    border-bottom: 1px solid #1a180f;
+    border-right: 1px solid #1a180f;
+  }
+
+  /* ── Dossier card grid ── */
+  .dossier-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 0.875rem;
   }
 </style>
+

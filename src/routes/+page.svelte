@@ -18,6 +18,10 @@
 	function navigateToDossiers() {
 		window.location.href = '/dossiers';
 	}
+
+	function navigateToTaggingParameters() {
+		window.location.href = '/tagging-parameters';
+	}
 </script>
 
 <div class="home-container">
@@ -47,6 +51,10 @@
 			<button on:click={navigateToDossiers} class="feature-card feature-link" type="button">
 				<div class="feature-title">🗂️ Dossier System</div>
 				<div class="feature-desc">View transcriptions grouped by dossier with mention snippets</div>
+			</button>
+			<button on:click={navigateToTaggingParameters} class="feature-card feature-link" type="button">
+				<div class="feature-title">⚙️ Tagging Parameters</div>
+				<div class="feature-desc">Adjust entity extraction thresholds, score weights, and keyword lists</div>
 			</button>
 		</div>
 	</div>

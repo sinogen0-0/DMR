@@ -10,6 +10,7 @@ export interface Entity {
   type: DossierType;
   confidence: number;
   mentions: string[];
+  description?: string;
   source?: string;
 }
 
