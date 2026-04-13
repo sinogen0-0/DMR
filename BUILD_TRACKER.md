@@ -575,7 +575,7 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 
 ---
 
-### ☐ Step 12: Create Dossier Detail View
+### ✅ Step 12: Create Dossier Detail View
 
 **Objective**: Build detailed view for individual dossier with editing capability, relationship management, and mention tracking.
 
@@ -591,19 +591,33 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 **Context & References**:
 - [DESIGN.md](./DESIGN.md) — Industrial Aesthetic
 
-**Files to Create**:
-- `src/routes/dossiers/[id]/+page.svelte` — Dossier detail page
+**Files Created/Updated**:
+- `src/routes/dossiers/[id]/+page.svelte` — Full dossier detail page with editing, relationships, mentions, breadcrumbs, and delete flow
 
 **Acceptance Criteria**:
-- [ ] All dossier fields display correctly
-- [ ] Edit mode allows updating fields
-- [ ] Changes save to SvelteStore and IndexedDB
-- [ ] Relationships can be added/removed
-- [ ] Mentions section shows all associated transcriptions
-- [ ] Breadcrumb reflects: Home > Dossiers > [Type] > [Entity Name]
-- [ ] Delete functionality works with confirmation
+- [✅] All dossier fields display correctly
+- [✅] Edit mode allows updating fields
+- [✅] Changes save to SvelteStore and IndexedDB
+- [✅] Relationships can be added/removed
+- [✅] Mentions section shows all associated transcriptions
+- [✅] Breadcrumb reflects: Home > Dossiers > [Type] > [Entity Name]
+- [✅] Delete functionality works with confirmation
 
-**Status**: ⏳ Not Started
+**Implementation Summary** (April 12, 2026):
+- Rebuilt dossier detail route to support full read/edit lifecycle with industrial-styled forms and sectioned panels.
+- Added inline edit mode with save/cancel for base fields (`name`, `description`, `imageUrl`, `notes`) and type-specific dossier fields:
+  - NPC: `faction`, `role`, `status`, `locationsKnown`
+  - Player Character: `playerName`, `characterClass`, `race`, `level`
+  - Location: `region`, `locationType`, `notableFeatures`
+  - Story Plot: `plotStatus`, `partiesInvolved`
+- Wired save flow through `dossierStore.updateDossier()` so changes persist to IndexedDB and reactive store state.
+- Added relationship manager: create relationship (target dossier + relation type + optional description) and remove existing relationships.
+- Added mentions section showing timestamp/context and direct navigation to linked transcript route (`/transcriptions/[recordingId]`).
+- Added breadcrumb path `Home > Dossiers > [Type] > [Entity Name]` via reusable `Breadcrumbs` component.
+- Added delete with confirmation using `dossierStore.deleteDossier()` then redirect to dossier browse hub.
+- Validation: `npm run type-check` and `npm run build` both pass.
+
+**Status**: ✅ Complete (April 12, 2026)
 
 ---
 
@@ -899,10 +913,10 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 | Phase 1: Core Audio & Transcription | 1-4b | ✅ 5 Complete |
 | Phase 2: Extraction & Categorization | 5-8 | ✅ 4 Complete |
 | Phase 3: Dossier Management & Merging | 9-10 | ✅ 2 Complete |
-| Phase 4: Dossier Browsing & Management | 11-12 | ⏳ Not Started |
+| Phase 4: Dossier Browsing & Management | 11-12 | ✅ 2 Complete |
 | Phase 5: Design Adaptation & New UI | 13-19 | ⏳ Not Started |
 | Phase 6: Testing & Deployment | 20 | ⏳ Not Started |
-| **TOTAL** | **20 steps + 4b** | **10 Complete, 10 Not Started** |
+| **TOTAL** | **20 steps + 4b** | **11 Complete, 9 Not Started** |
 
 ---
 
