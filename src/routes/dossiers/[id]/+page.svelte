@@ -6,7 +6,6 @@
   import type { AnyDossier, CharacterDossier, LocationDossier, NPCDossier, PlotDossier } from '$lib/types/dossier';
   import { createDossierService } from '$services';
   import { dossiers, ensureLoaded, loadDossiers, updateDossier, deleteDossier } from '$stores/dossierStore';
-  import Breadcrumbs from '../../../components/Breadcrumbs.svelte';
 
   const service = createDossierService();
 
@@ -67,19 +66,6 @@
   let relDescription = '';
 
   $: dossierId = $page.params.id;
-  $: breadcrumbs = dossier
-    ? [
-        { label: 'Home', href: '/' },
-        { label: 'Dossiers', href: '/dossiers' },
-        { label: TYPE_LABELS[dossier.type], href: `/dossiers?type=${TYPE_TO_SLUG[dossier.type]}` },
-        { label: dossier.name }
-      ]
-    : [
-        { label: 'Home', href: '/' },
-        { label: 'Dossiers', href: '/dossiers' },
-        { label: 'Detail' }
-      ];
-
   $: relatedLookup = new Map(($dossiers || []).map((d) => [d.id, d.name]));
   $: relationTargetOptions = ($dossiers || []).filter((d) => d.id !== dossier?.id);
 
@@ -311,8 +297,6 @@
 </script>
 
 <div class="page">
-  <Breadcrumbs crumbs={breadcrumbs} />
-
   <div class="header-strip">
     <div>
       <div class="eyebrow">Dossier Detail</div>

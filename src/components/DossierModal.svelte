@@ -97,7 +97,7 @@
     overflow: auto;
     background: #fef9f0;
     box-shadow:
-      0 18px 24px rgba(54, 50, 38, 0.16),
+      0 0 24px rgba(54, 50, 38, 0.06),
       inset 1px 1px 0 #ffffff,
       inset -1px -1px 0 #c8baa1;
     padding: 1rem;

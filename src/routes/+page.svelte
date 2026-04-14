@@ -7,10 +7,6 @@
 		window.location.href = '/recording';
 	}
 
-	function navigateToTranscription() {
-		window.location.href = '/transcription-test';
-	}
-
 	function navigateToEntities() {
 		window.location.href = '/entities';
 	}
@@ -19,8 +15,8 @@
 		window.location.href = '/dossiers';
 	}
 
-	function navigateToTaggingParameters() {
-		window.location.href = '/tagging-parameters';
+	function navigateToSettings() {
+		window.location.href = '/settings';
 	}
 </script>
 
@@ -40,10 +36,6 @@
 				<div class="feature-title">🎙️ Audio Recording</div>
 				<div class="feature-desc">Record D&D sessions in FLAC format with offline support</div>
 			</button>
-			<button on:click={navigateToTranscription} class="feature-card feature-link" type="button">
-				<div class="feature-title">✨ Transcription</div>
-				<div class="feature-desc">Convert audio to M4A after automatic transcription</div>
-			</button>
 			<button on:click={navigateToEntities} class="feature-card feature-link" type="button">
 				<div class="feature-title">📖 Entity Lists</div>
 				<div class="feature-desc">Add characters, NPCs, locations, and story objects</div>
@@ -52,9 +44,9 @@
 				<div class="feature-title">🗂️ Dossier System</div>
 				<div class="feature-desc">View transcriptions grouped by dossier with mention snippets</div>
 			</button>
-			<button on:click={navigateToTaggingParameters} class="feature-card feature-link" type="button">
-				<div class="feature-title">⚙️ Tagging Parameters</div>
-				<div class="feature-desc">Adjust entity extraction thresholds, score weights, and keyword lists</div>
+			<button on:click={navigateToSettings} class="feature-card feature-link" type="button">
+				<div class="feature-title">🛠️ Settings & Tagging</div>
+				<div class="feature-desc">Tune app settings, merge thresholds, and tagging/categorization parameters</div>
 			</button>
 		</div>
 	</div>

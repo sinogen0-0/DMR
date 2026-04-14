@@ -623,7 +623,7 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 
 ## Phase 5: Design Adaptation & New UI Screens
 
-### ☐ Step 13: Audit & Document Existing Stitch Design
+### ✅ Step 13: Audit & Document Existing Stitch Design
 
 **Objective**: Review Stitch design files, identify reusable components and layouts, document gaps for new features.
 
@@ -640,16 +640,23 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - `STITCH_DESIGN_AUDIT.md` — Design audit document
 
 **Acceptance Criteria**:
-- [ ] All existing Stitch screens documented
-- [ ] Reusable components identified with specific patterns/measurements
-- [ ] Gaps and new screens clearly marked
-- [ ] Design system tokens extracted (colors, spacing, typography matches)
+- [✅] All existing Stitch screens documented
+- [✅] Reusable components identified with specific patterns/measurements
+- [✅] Gaps and new screens clearly marked
+- [✅] Design system tokens extracted (colors, spacing, typography matches)
 
-**Status**: ⏳ Not Started
+**Implementation Summary** (April 13, 2026):
+- Created [STITCH_DESIGN_AUDIT.md](./STITCH_DESIGN_AUDIT.md) with a full audit of the Stitch export and current implementation alignment.
+- Documented existing Stitch screen coverage (THE DOSSIERS + shared shell/chrome motifs), including top app bar, archive header, tab strip, inset filter row, feature/mini dossier cards, system footer strip, and mobile dock nav.
+- Extracted reusable tokens and measurements from [code.html](./code.html): core palette values, typography roles, bevel utility patterns, shell spacing, and density conventions.
+- Mapped reusable components for implementation: FolderTabs, ArchiveHeader, RecessedSearchBar, DossierFeatureCard, DossierMiniCard, SystemFooterStrip, DockNavMobile.
+- Identified gap areas for upcoming work: shell-level chrome consistency, tab-strip normalization, shared search/filter motif, and net-new screen visual adaptation.
+
+**Status**: ✅ Complete (April 13, 2026)
 
 ---
 
-### ☐ Step 14: Design Transcription Review Screen
+### ✅ Step 14: Design Transcription Review Screen
 
 **Objective**: Create mock/prototype for Transcription Review screen showing extraction approval workflow.
 
@@ -664,16 +671,21 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - [DESIGN.md](./DESIGN.md) — Industrial Aesthetic inset/outset bevels, warm palette, functional orange buttons
 
 **Acceptance Criteria**:
-- [ ] Screen design approved by user
-- [ ] Layout matches Industrial Aesthetic guidelines
-- [ ] Interaction flow (confirm/edit/reject) is clear
-- [ ] Ready for implementation (Step 7 will build this)
+- [✅] Screen design approved by user
+- [✅] Layout matches Industrial Aesthetic guidelines
+- [✅] Interaction flow (confirm/edit/reject) is clear
+- [✅] Ready for implementation (Step 7 built and integrated)
 
-**Status**: ⏳ Not Started
+**Implementation Summary** (April 13, 2026):
+- Design and implementation are captured in `src/routes/transcriptions/[id]/review.svelte` and `src/components/ExtractionPreview.svelte`.
+- Final layout uses left/right review workflow with industrial inset/outset controls and clear decision actions.
+- Integrated manual merge-review section (`MergeConflictResolver`) to complete real approval flow.
+
+**Status**: ✅ Complete (April 13, 2026)
 
 ---
 
-### ☐ Step 15: Design Settings Page
+### ✅ Step 15: Design Settings Page
 
 **Objective**: Create mock/prototype for Settings page with codec toggle, merge threshold slider, and reference link style preference.
 
@@ -688,16 +700,22 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - [DESIGN.md](./DESIGN.md) — Header strip pattern, control module organization, warm palette
 
 **Acceptance Criteria**:
-- [ ] Screen design approved by user
-- [ ] All settings controls visible and organized
-- [ ] Layout follows Industrial Aesthetic
-- [ ] Ready for implementation
+- [✅] Screen design approved by user
+- [✅] All settings controls visible and organized
+- [✅] Layout follows Industrial Aesthetic
+- [✅] Ready for implementation
 
-**Status**: ⏳ Not Started
+**Implementation Summary** (April 13, 2026):
+- Added `src/routes/settings/+page.svelte` with organized modules for codec, merge threshold slider, and reference link style.
+- Added `src/lib/stores/settingsStore.ts` with localStorage persistence (`dmr_app_settings`) and defaults.
+- Added settings navigation entry to `src/routes/+page.svelte`.
+- Added language/theme controls as extensible settings fields aligned to `AppSettings` type.
+
+**Status**: ✅ Complete (April 13, 2026)
 
 ---
 
-### ☐ Step 16: Design Dossier Modal Component
+### ✅ Step 16: Design Dossier Modal Component
 
 **Objective**: Create mock/prototype for floating modal used when clicking linked entities in transcriptions.
 
@@ -712,16 +730,21 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - [DESIGN.md](./DESIGN.md) — Ambient shadow, inset content, warm palette
 
 **Acceptance Criteria**:
-- [ ] Modal design approved by user
-- [ ] Doesn't obstruct transcription context
-- [ ] Styling follows Industrial Aesthetic
-- [ ] Ready for implementation
+- [✅] Modal design approved by user
+- [✅] Doesn't obstruct transcription context
+- [✅] Styling follows Industrial Aesthetic
+- [✅] Ready for implementation
 
-**Status**: ⏳ Not Started
+**Implementation Summary** (April 13, 2026):
+- Modal implemented in `src/components/DossierModal.svelte` as right-aligned preview panel with compact dossier metadata and action buttons.
+- Updated ambient shadow to a 24px low-opacity glow per design guideline.
+- Supports close-by-overlay, close button, Escape key, and full dossier navigation.
+
+**Status**: ✅ Complete (April 13, 2026)
 
 ---
 
-### ☐ Step 17: Implement Breadcrumb Navigation Component
+### ✅ Step 17: Implement Breadcrumb Navigation Component
 
 **Objective**: Build reusable breadcrumb component for use across dossier screens.
 
@@ -740,21 +763,25 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - `src/components/Breadcrumbs.svelte` — Breadcrumb component
 
 **Acceptance Criteria**:
-- [ ] Component accepts breadcrumb path array
-- [ ] Renders correctly with separators
-- [ ] Click handlers navigate correctly
-- [ ] Styling follows Industrial Aesthetic
+- [✅] Component accepts breadcrumb path array
+- [✅] Renders correctly with separators
+- [✅] Click handlers navigate correctly
+- [✅] Styling follows Industrial Aesthetic
 
-**Status**: ⏳ Not Started
+**Implementation Summary** (April 13, 2026):
+- Implemented reusable breadcrumb component in `src/components/Breadcrumbs.svelte`.
+- Integrated into dossier browse/detail and transcription viewer contexts.
+
+**Status**: ✅ Complete (April 13, 2026)
 
 ---
 
-### ☐ Step 18: Adapt Existing Dossier Browse Screen
+### ✅ Step 18: Adapt Existing Dossier Browse Screen
 
 **Objective**: Enhance the existing Stitch "THE DOSSIERS" screen with breadcrumbs, merged entity indicators, and mention counts.
 
 **Deliverables**:
-- Update `src/routes/dossiers/[type]/+page.svelte` to:
+- Update `src/routes/dossiers/+page.svelte` to:
   - Add breadcrumb at top (Home > Dossiers > [Type])
   - Enhance cards to show: image, name, type, LED dot (merged indicator), mention count from transcriptions, last updated timestamp
   - Keep existing tabs (CHARACTERS, NPC_REGISTRY, LOCATIONS, STORY_PLOTS)
@@ -765,22 +792,29 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - [DESIGN.md](./DESIGN.md) — Outset card bevels, LED indicators (secondary color), asymmetrical spacing
 - [STITCH_DESIGN_AUDIT.md](./STITCH_DESIGN_AUDIT.md) — (from Step 13) Reference card layout, tabs, spacing
 
-**Files to Update**:
-- `src/routes/dossiers/[type]/+page.svelte`
-- `src/components/DossierCard.svelte` — (create/update with merged indicator + mention count)
+**Files Updated**:
+- `src/routes/dossiers/+page.svelte`
+- `src/components/DossierCard.svelte`
+- `src/components/Breadcrumbs.svelte`
 
 **Acceptance Criteria**:
-- [ ] Breadcrumbs display and navigate correctly
-- [ ] Cards show all required info: image, name, type, LED dot, mention count, last updated
-- [ ] Tabs filter dossiers correctly
-- [ ] Visual style maintains Industrial Aesthetic
-- [ ] Card layout aligns with Stitch design patterns
+- [✅] Breadcrumbs display and navigate correctly
+- [✅] Cards show all required info: image, name, type, LED dot, mention count, last updated
+- [✅] Tabs filter dossiers correctly
+- [✅] Visual style maintains Industrial Aesthetic
+- [✅] Card layout aligns with Stitch design patterns
 
-**Status**: ⏳ Not Started
+**Implementation Summary** (April 13, 2026):
+- Adaptation delivered on `src/routes/dossiers/+page.svelte` using query-param type filtering (`?type=...`) to avoid route conflict with `/dossiers/[id]`.
+- Added top tab-strip controls (`All`, `NPC Registry`, `Characters`, `Locations`, `Story Threads`) with active-state treatment.
+- Preserved sort controls and strengthened Stitch-style industrial panel aesthetics.
+- Dossier cards include LED indicator semantics, mention and relationship counts, and last-updated timestamp.
+
+**Status**: ✅ Complete (April 13, 2026)
 
 ---
 
-### ☐ Step 19: Build Transcription View with Entity Linking
+### ✅ Step 19: Build Transcription View with Entity Linking
 
 **Objective**: Build transcription viewer that highlights linked entities and opens dossier modal on click.
 
@@ -800,13 +834,19 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 - (Reuse Step 10's DossierModal component)
 
 **Acceptance Criteria**:
-- [ ] Linked entities highlighted in transcription text
-- [ ] Clicking entity opens DossierModal
-- [ ] Modal displays correctly without obscuring context
-- [ ] "Open Full Dossier" link navigates to detail page
-- [ ] Close modal functionality works
+- [✅] Linked entities highlighted in transcription text
+- [✅] Clicking entity opens DossierModal
+- [✅] Modal displays correctly without obscuring context
+- [✅] "Open Full Dossier" link navigates to detail page
+- [✅] Close modal functionality works
 
-**Status**: ⏳ Not Started
+**Implementation Summary** (April 13, 2026):
+- Implemented and refined viewer in `src/routes/transcriptions/[id]/+page.svelte` with highlighted inline entity links from `src/lib/utils/entityLinking.ts`.
+- Added breadcrumb context (`Home > Transcriptions > [Date]`) via reusable breadcrumbs.
+- Connected link behavior to settings preference (`referenceLinkStyle`): modal preview or direct full-page dossier route.
+- Reused `src/components/DossierModal.svelte` for modal preview workflow.
+
+**Status**: ✅ Complete (April 13, 2026)
 
 ---
 
@@ -914,16 +954,16 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 | Phase 2: Extraction & Categorization | 5-8 | ✅ 4 Complete |
 | Phase 3: Dossier Management & Merging | 9-10 | ✅ 2 Complete |
 | Phase 4: Dossier Browsing & Management | 11-12 | ✅ 2 Complete |
-| Phase 5: Design Adaptation & New UI | 13-19 | ⏳ Not Started |
+| Phase 5: Design Adaptation & New UI | 13-19 | ✅ 7 Complete |
 | Phase 6: Testing & Deployment | 20 | ⏳ Not Started |
-| **TOTAL** | **20 steps + 4b** | **11 Complete, 9 Not Started** |
+| **TOTAL** | **20 steps + 4b** | **18 Complete, 2 Not Started** |
 
 ---
 
 ## Key Context Files to Reference
 
 - [DESIGN.md](./DESIGN.md) — Industrial Aesthetic design system (colors, typography, spacing, elevation principles)
-- [STITCH_DESIGN_AUDIT.md](./STITCH_DESIGN_AUDIT.md) — (to be created in Step 13) Audit of reusable Stitch design components
+- [STITCH_DESIGN_AUDIT.md](./STITCH_DESIGN_AUDIT.md) — Audit of reusable Stitch design components
 - Stitch Design Files: `stitch_dungeon_deck_recorder.zip` and `code.html` — Original designs
 
 ---

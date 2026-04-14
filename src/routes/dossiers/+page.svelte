@@ -11,7 +11,6 @@
     loadDossiers
   } from '$stores/dossierStore';
   import DossierCard from '../../components/DossierCard.svelte';
-  import Breadcrumbs from '../../components/Breadcrumbs.svelte';
   import type { DossierType } from '$lib/types';
   import type { AnyDossier } from '$lib/types/dossier';
 
@@ -71,14 +70,6 @@
     });
   })();
 
-  $: breadcrumbs = (() => {
-    const base = [{ label: 'Home', href: '/' }, { label: 'Dossiers', href: '/dossiers' }];
-    if (activeType) {
-      base.push({ label: TYPE_META[activeType].label });
-    }
-    return base;
-  })();
-
   // ── Actions ─────────────────────────────────────────────────────
 
   onMount(async () => {
@@ -110,13 +101,6 @@
 <!-- ─── DOSSIER BROWSE PAGE ─── -->
 <div class="page">
 
-  <!-- Breadcrumbs (only when filtering) -->
-  {#if activeType}
-    <div class="crumb-row">
-      <Breadcrumbs crumbs={breadcrumbs} />
-    </div>
-  {/if}
-
   <!-- Page header -->
   <div class="page-header">
     <div class="header-left">
@@ -136,6 +120,28 @@
         disabled={$dossiersLoading}
       >Refresh</button>
     </div>
+  </div>
+
+  <div class="type-tabs" role="tablist" aria-label="Dossier types">
+    <button
+      class="type-tab"
+      class:active={activeType === null}
+      type="button"
+      role="tab"
+      aria-selected={activeType === null}
+      on:click={clearType}
+    >All</button>
+    {#each TYPES as t (t)}
+      {@const meta = TYPE_META[t]}
+      <button
+        class="type-tab"
+        class:active={activeType === t}
+        type="button"
+        role="tab"
+        aria-selected={activeType === t}
+        on:click={() => selectType(meta.slug)}
+      >{meta.label}</button>
+    {/each}
   </div>
 
   {#if $dossiersLoading}
@@ -231,10 +237,6 @@
     min-height: 0;
   }
 
-  .crumb-row {
-    margin-bottom: -0.5rem;
-  }
-
   /* ── Page header ── */
   .page-header {
     display: flex;
@@ -303,6 +305,37 @@
   .reload-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .type-tabs {
+    display: flex;
+    align-items: end;
+    gap: 0.35rem;
+    margin-top: -0.15rem;
+  }
+
+  .type-tab {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.675rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    padding: 0.45rem 0.8rem;
+    cursor: pointer;
+    background: #eee8d8;
+    color: #6b6250;
+    border-top: 1px solid #f5eee1;
+    border-left: 1px solid #f5eee1;
+    border-bottom: 1px solid #b3a791;
+    border-right: 1px solid #b3a791;
+  }
+
+  .type-tab.active {
+    background: #ffffff;
+    color: #9a442d;
+    border-top: 1px solid #eee8d8;
+    border-left: 1px solid #eee8d8;
+    border-bottom: 1px solid #363226;
+    border-right: 1px solid #363226;
   }
 
   /* ── Status panel ── */

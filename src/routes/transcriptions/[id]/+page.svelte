@@ -5,6 +5,7 @@
   import DossierModal from '../../../components/DossierModal.svelte';
   import { createStorageService } from '$services';
   import { loadDossiers, dossiers } from '$stores/dossierStore';
+  import { appSettings, initializeSettingsStore } from '$stores/settingsStore';
   import { buildLinkedTranscript } from '$lib/utils/entityLinking';
   import type { Recording } from '$lib/types';
   import type { AnyDossier } from '$lib/types/dossier';
@@ -25,6 +26,7 @@
   }
 
   onMount(async () => {
+    initializeSettingsStore();
     await loadPage();
   });
 
@@ -47,8 +49,12 @@
     }
   }
 
-  function openDossier(dossierId: string | undefined): void {
+  async function openDossier(dossierId: string | undefined): Promise<void> {
     if (!dossierId) return;
+    if ($appSettings.referenceLinkStyle === 'fullpage') {
+      await goto(`/dossiers/${dossierId}`);
+      return;
+    }
     selectedDossier = allDossiers.find((item) => item.id === dossierId) ?? null;
   }
 
@@ -89,7 +95,7 @@
         <div class="transcript-body">
           {#each linkedSegments as segment, index (`${segment.text}-${index}`)}
             {#if segment.dossierId}
-              <button class="linked-entity" type="button" on:click={() => openDossier(segment.dossierId)}>
+              <button class="linked-entity" type="button" on:click={() => void openDossier(segment.dossierId)}>
                 {segment.text}
               </button>
             {:else}
@@ -107,7 +113,7 @@
               <button
                 class="tag-chip"
                 type="button"
-                on:click={() => openDossier(allDossiers.find((item) => item.name.toLowerCase() === tag.name.toLowerCase() && item.type === tag.type)?.id)}
+                on:click={() => void openDossier(allDossiers.find((item) => item.name.toLowerCase() === tag.name.toLowerCase() && item.type === tag.type)?.id)}
               >
                 <span>{tag.name}</span>
                 <span>{typeLabel(tag.type)}</span>
