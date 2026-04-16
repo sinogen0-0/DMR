@@ -8,6 +8,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
+    "test:mvp:web": "npm run type-check && npm run build",
+    "mobile:sync:ios": "npm run build && npx cap sync ios",
+    "mobile:sync:android": "npm run build && npx cap sync android",
+    "android:test": "cd android && gradlew.bat test",
+    "android:build:debug": "cd android && gradlew.bat assembleDebug",
+    "android:build:release": "cd android && gradlew.bat bundleRelease",
     "format": "prettier --write .",
     "lint": "eslint ."
   },

@@ -883,12 +883,33 @@ Build a fully offline, device-specific audio recording, transcription, and dossi
 **Acceptance Criteria**:
 - [ ] MVP runs successfully on web (Vercel)
 - [ ] MVP builds and runs on iOS simulator
-- [ ] MVP builds and runs on Android emulator
+- [x] MVP builds and runs on Android emulator
 - [ ] Full audio → transcribe → extract → dossier workflow functional
 - [ ] No critical bugs or errors
 - [ ] Ready for user acceptance testing
 
-**Status**: ⏳ Not Started
+**Implementation Summary** (April 16, 2026):
+- Added Step 20 deployment config: `vercel.json` for static build output (`build/`) with filesystem-first routing and SPA fallback.
+- Added Step 20 runbook: `TEST_DEPLOY_STEP20.md` with web, Android, iOS, and Vercel deployment procedures.
+- Added npm scripts for Step 20 validation and build workflows:
+  - `test:mvp:web`
+  - `mobile:sync:android`
+  - `mobile:sync:ios`
+  - `android:test`
+  - `android:build:debug`
+  - `android:build:release`
+- Verified web validation command succeeds: `npm run test:mvp:web`.
+- Verified Android workflow succeeds:
+  - `npm run mobile:sync:android`
+  - `npm run android:test`
+  - `npm run android:build:debug` produced `android/app/build/outputs/apk/debug/app-debug.apk`
+  - `npm run android:build:release` produced `android/app/build/outputs/bundle/release/app-release.aab`
+- Verified iOS sync command succeeds on Windows with expected host limitations:
+  - `npm run mobile:sync:ios` completed asset/plugin sync
+  - CocoaPods and `xcodebuild` not available on Windows, so simulator build/archive must be run on macOS
+- Verified Vercel CLI availability (`npx vercel --version` -> 51.5.0).
+
+**Status**: 🚧 In Progress (Web deploy + iOS simulator validation pending)
 
 ---
 

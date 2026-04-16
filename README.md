@@ -66,6 +66,24 @@ npm run build
 npm run preview
 ```
 
+### MVP Test and Deploy (Step 20)
+
+```bash
+# Web MVP validation
+npm run test:mvp:web
+
+# Android sync and builds
+npm run mobile:sync:android
+npm run android:test
+npm run android:build:debug
+npm run android:build:release
+
+# iOS sync (must run on macOS)
+npm run mobile:sync:ios
+```
+
+See [TEST_DEPLOY_STEP20.md](./TEST_DEPLOY_STEP20.md) for the full checklist and deployment runbook.
+
 ### Mobile Development
 
 #### iOS
@@ -171,6 +189,12 @@ See [DESIGN.md](./DESIGN.md) for complete design guidelines.
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run type-check` - Check TypeScript types
+- `npm run test:mvp:web` - Run web MVP verification (type-check + production build)
+- `npm run mobile:sync:android` - Build web bundle and sync Capacitor Android project
+- `npm run mobile:sync:ios` - Build web bundle and sync Capacitor iOS project (macOS required)
+- `npm run android:test` - Run Android unit tests via Gradle
+- `npm run android:build:debug` - Build Android debug APK via Gradle
+- `npm run android:build:release` - Build Android release AAB via Gradle
 - `npm run format` - Format code with Prettier
 - `npm run lint` - Lint code with ESLint
 
@@ -245,6 +269,6 @@ This project is being developed with an AI assistant. Implementation steps are t
 
 ---
 
-**Last Updated**: March 27, 2026
-**Current Phase**: Phase 1, Step 1 (Setup) ✅
-**Next**: Step 2 (Audio Recording Service)
+**Last Updated**: April 16, 2026
+**Current Phase**: Phase 6, Step 20 (Testing & Deployment) 🚧
+**Next**: Complete web production deploy, iOS simulator validation, and end-to-end manual QA signoff
