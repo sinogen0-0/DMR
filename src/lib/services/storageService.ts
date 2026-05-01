@@ -54,7 +54,7 @@ class StorageServiceImpl implements StorageService {
   async initialize(): Promise<void> {
     try {
       await this.backend.initialize();
-      await this.converter.initialize();
+      // Keep converter lazy-loaded to avoid loading ffmpeg core on app startup.
     } catch (error) {
       console.error(`Storage initialization failed on ${this.platform}:`, error);
       throw error;
@@ -135,7 +135,7 @@ class StorageServiceImpl implements StorageService {
       // Map Recording format to codec converter input format
       const inputFormatMap: Record<Recording['format'], ConversionOptions['inputFormat']> = {
         'flac': 'flac',
-        'm4a': 'opus', // m4a is output format, assume opus input
+        'm4a': 'm4a',
         'opus': 'opus',
       };
 

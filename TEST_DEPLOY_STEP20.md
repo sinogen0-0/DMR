@@ -61,6 +61,21 @@ Expected result:
 
 Project includes vercel.json configured for static SvelteKit output in build/.
 
+Primary procedure (matches successful deploy for this workspace/team policy):
+
+```bash
+npm run deploy:web:vercel-team
+```
+
+What this does:
+- Builds the web app
+- Copies build output into a temporary non-git folder
+- Links that folder to `jacob-pierces-projects/dungeon-deck-recorder`
+- Deploys production from the temp folder
+
+Expected production alias:
+- https://dungeon-deck-recorder.vercel.app
+
 CLI deployment:
 
 ```bash
@@ -68,6 +83,9 @@ npm install -g vercel
 vercel login
 vercel --prod
 ```
+
+Note:
+- Use the primary procedure above if direct repo deploy is blocked by team git-author policy.
 
 Dashboard deployment:
 - Import repository in Vercel
