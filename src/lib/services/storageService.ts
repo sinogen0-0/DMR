@@ -17,6 +17,7 @@ import { CodecConverter, type ConversionOptions } from './storage/codecConverter
 export interface StorageService {
   initialize(): Promise<void>;
   saveRecording(recording: Recording): Promise<void>;
+  updateRecording(id: string, updates: Partial<Recording>): Promise<void>;
   loadRecording(id: string): Promise<Recording | null>;
   listRecordings(filter?: {
     format?: Recording['format'];
@@ -66,6 +67,31 @@ class StorageServiceImpl implements StorageService {
       await this.backend.saveRecording(recording);
     } catch (error) {
       console.error('Failed to save recording:', error);
+      throw error;
+    }
+  }
+
+  async updateRecording(id: string, updates: Partial<Recording>): Promise<void> {
+    try {
+      // Load existing recording
+      const existing = await this.backend.loadRecording(id);
+      if (!existing) {
+        throw new Error(`Recording ${id} not found`);
+      }
+
+      // Merge updates with existing data
+      const updated: Recording = {
+        ...existing,
+        ...updates,
+        // Ensure ID and timestamp aren't overwritten
+        id: existing.id,
+        timestamp: existing.timestamp,
+      };
+
+      // Save updated recording
+      await this.backend.saveRecording(updated);
+    } catch (error) {
+      console.error('Failed to update recording:', error);
       throw error;
     }
   }

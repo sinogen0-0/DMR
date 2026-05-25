@@ -1,0 +1,460 @@
+/**
+ * Twin Peaks Tape Deck - Global Styles
+ * CRT Oscilloscope effects and physical device aesthetics
+ */
+
+/* CSS Custom Properties */
+:root {
+  /* Display */
+  --display-width: 480px;
+  --display-height: 854px;
+  
+  /* Colors - CRT Phosphor Green */
+  --color-phosphor-green: #00ff41;
+  --color-phosphor-green-dim: #00cc33;
+  --color-phosphor-green-bright: #66ff88;
+  --color-phosphor-glow: rgba(0, 255, 65, 0.5);
+  --color-crt-bg: #001a0d;
+  --color-crt-bg-light: #002611;
+  
+  /* Colors - Device Housing */
+  --color-device-bg: #1a1a1a;
+  --color-device-panel: #2a2a2a;
+  --color-metal-dark: #0f0f0f;
+  
+  /* Colors - Buttons */
+  --color-button-default: #3a3a3a;
+  --color-button-pressed: #1a1a1a;
+  --color-button-highlight: #505050;
+  --color-button-record: #ff4400;
+  --color-button-pause: #ffaa00;
+  --color-button-stop: #2a2a2a;
+  
+  /* Colors - LEDs */
+  --color-led-active: #ff0000;
+  --color-led-inactive: #330000;
+  --color-led-ready: #00ff41;
+  --color-led-warning: #ffaa00;
+  
+  /* Colors - RetroFuturistic Terminal */
+  --color-terminal-bg: #0a0a0a;
+  --color-terminal-border: #ffffff;
+  --color-terminal-text: #ffffff;
+  --color-terminal-dim: #888888;
+  --color-accent-coral: #ff6b6b;
+  --color-accent-cyan: #4ecdc4;
+  --color-accent-yellow: #ffe66d;
+  
+  /* Chassis - Brushed Aluminum */
+  --color-chassis-aluminum: #b8b8b8;
+  --color-chassis-aluminum-dark: #8a8a8a;
+  --color-chassis-aluminum-light: #d4d4d4;
+  --chassis-border-width: 8px;
+  
+  /* Borders - Sharp Terminal Style */
+  --border-width: 2px;
+  --border-radius: 0px;
+  --border-style: solid;
+  
+  /* Shadows - Minimal Sharp Edges */
+  --shadow-button: 4px 4px 0 0 rgba(0, 0, 0, 0.3);
+  --shadow-button-active: 2px 2px 0 0 rgba(0, 0, 0, 0.3);
+  --shadow-panel: 0 4px 12px rgba(0, 0, 0, 0.5);
+  
+  /* Scanline Effect */
+  --scanline-opacity: 0.05;
+  --scanline-height: 2px;
+  
+  /* Typography - Monospace Terminal */
+  --font-display: "Space Mono", "Courier New", "Consolas", monospace;
+  --font-label: "Space Mono", "Courier New", monospace;
+  --font-size-base: 14px;
+  --font-size-large: 18px;
+  --font-size-small: 12px;
+  
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  
+  /* Timing */
+  --timing-button: 100ms;
+  --timing-scan: 8s;
+  --timing-flicker: 0.15s;
+}
+
+/* Global Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-device-bg);
+  color: var(--color-phosphor-green);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Limit app to device dimensions */
+#app {
+  width: 100vw;
+  height: 100vh;
+  max-width: var(--display-width);
+  max-height: var(--display-height);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-device-bg);
+}
+
+/* ========================================
+   CRT OSCILLOSCOPE EFFECTS
+   ======================================== */
+
+/* Scan line animation */
+@keyframes scan-line {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+.crt-display {
+  position: relative;
+  background: var(--color-crt-bg);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 
+    0 0 20px rgba(0, 255, 65, 0.3),
+    inset 0 0 40px rgba(0, 255, 65, 0.1);
+}
+
+/* Scan line overlay */
+.crt-display::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0, 255, 65, 0.5) 50%,
+    transparent 100%
+  );
+  animation: scan-line var(--timing-scan) linear infinite;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+/* Horizontal scan lines texture */
+.crt-display::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    rgba(0, 0, 0, 0.2) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  pointer-events: none;
+  z-index: 999;
+}
+
+/* CRT text glow effect */
+.crt-text {
+  color: var(--color-phosphor-green);
+  text-shadow: 
+    0 0 4px rgba(0, 255, 65, 0.8),
+    0 0 8px rgba(0, 255, 65, 0.4);
+  font-family: var(--font-display);
+  letter-spacing: 0.05em;
+}
+
+.crt-text-bright {
+  color: var(--color-phosphor-green-bright);
+  text-shadow: 
+    0 0 6px rgba(0, 255, 65, 1),
+    0 0 12px rgba(0, 255, 65, 0.6),
+    0 0 20px rgba(0, 255, 65, 0.3);
+}
+
+.crt-text-dim {
+  color: var(--color-phosphor-green-dim);
+  text-shadow: 
+    0 0 3px rgba(0, 255, 65, 0.5),
+    0 0 6px rgba(0, 255, 65, 0.2);
+}
+
+/* Cursor blink animation */
+@keyframes cursor-blink {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0;
+  }
+}
+
+.crt-cursor {
+  display: inline-block;
+  width: 0.6em;
+  height: 1em;
+  background: var(--color-phosphor-green);
+  animation: cursor-blink 1s step-end infinite;
+  box-shadow: 0 0 8px var(--color-phosphor-glow);
+}
+
+/* Flicker effect (subtle) */
+@keyframes crt-flicker {
+  0% { opacity: 1; }
+  2% { opacity: 0.95; }
+  4% { opacity: 1; }
+  8% { opacity: 0.98; }
+  10% { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+.crt-display.flickering {
+  animation: crt-flicker 8s linear infinite;
+}
+
+/* ========================================
+   PHYSICAL BUTTON EFFECTS
+   ======================================== */
+
+.physical-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: var(--color-button-default);
+  color: #ffffff;
+  font-family: var(--font-label);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all var(--timing-button) cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  
+  /* 3D raised effect */
+  box-shadow: 
+    0 4px 0 0 #0a0a0a,
+    0 4px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.physical-button:hover:not(:disabled):not(.pressed) {
+  transform: translateY(-1px);
+  box-shadow: 
+    0 5px 0 0 #0a0a0a,
+    0 5px 12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.physical-button:active:not(:disabled),
+.physical-button.pressed {
+  transform: translateY(3px);
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.5),
+    inset 0 1px 2px rgba(0, 0, 0, 0.3);
+  background: var(--color-button-pressed);
+}
+
+.physical-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Button color variants */
+.physical-button.record {
+  background: var(--color-button-record);
+}
+
+.physical-button.record.pressed {
+  background: #cc3300;
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 68, 0, 0.6);
+}
+
+.physical-button.pause {
+  background: var(--color-button-pause);
+}
+
+.physical-button.pause.pressed {
+  background: #cc8800;
+}
+
+.physical-button.stop {
+  background: var(--color-button-stop);
+  color: #999999;
+}
+
+/* ========================================
+   LED INDICATORS
+   ======================================== */
+
+.led {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-led-inactive);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.led.active {
+  background: var(--color-led-active);
+  box-shadow: 
+    0 0 4px var(--color-led-active),
+    0 0 8px var(--color-led-active),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+.led.ready {
+  background: var(--color-led-ready);
+  box-shadow: 
+    0 0 4px var(--color-led-ready),
+    0 0 8px var(--color-led-ready),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+.led.warning {
+  background: var(--color-led-warning);
+  box-shadow: 
+    0 0 4px var(--color-led-warning),
+    0 0 8px var(--color-led-warning),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+/* Pulsing LED animation */
+@keyframes led-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.led.pulse {
+  animation: led-pulse 1s ease-in-out infinite;
+}
+
+/* ========================================
+   PANEL EFFECTS
+   ======================================== */
+
+.device-panel {
+  background: var(--color-device-panel);
+  border-radius: 8px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
+  padding: var(--spacing-md);
+}
+
+.device-panel-raised {
+  background: var(--color-device-panel);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  padding: var(--spacing-md);
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+.uppercase {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.monospace {
+  font-family: var(--font-display);
+}
+
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in {
+  animation: fade-in 300ms ease-out;
+}
+
+/* Slide up animation */
+@keyframes slide-up {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.slide-up {
+  animation: slide-up 400ms ease-out;
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-crt-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-phosphor-green-dim);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-phosphor-green);
+}

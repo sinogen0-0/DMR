@@ -1,0 +1,3 @@
+﻿Uid mode: RECORD_AUDIO: foreground
+VIBRATE: allow; time=+1h11m47s903ms ago; duration=+44ms
+RECORD_AUDIO: allow; time=+2m41s399ms ago; duration=+3s259ms

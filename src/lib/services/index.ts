@@ -21,3 +21,10 @@ export { createDossierService } from './dossierService';
 export type { DossierService } from './dossierService';
 export { createMergeService } from './mergeService';
 export type { MergeService, MergeConflict, MergeBatchResult, MergeResolutionResult } from './mergeService';
+
+// ML Services (singletons)
+export { embeddingService } from './embeddingService';
+export { queryService } from './queryService';
+export type { QueryIntent } from './queryService';
+export { answerService } from './answerService';
+export type { AnswerResult } from './answerService';

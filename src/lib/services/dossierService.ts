@@ -275,3 +275,6 @@ export function createDossierService(): DossierService {
   if (!instance) instance = new DossierService();
   return instance;
 }
+
+// Export singleton instance for convenience
+export const dossierService = createDossierService();

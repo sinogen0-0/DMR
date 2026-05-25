@@ -37,6 +37,8 @@ export interface Recording {
   blobUrl?: string;
   path?: string;
   transcription?: string;
+  transcriptionStatus?: 'pending' | 'processing' | 'completed' | 'failed' | 'none';
+  transcriptionError?: string;
   extractedEntities?: Entity[];
   transcriptionTags?: TranscriptionTag[];
 }

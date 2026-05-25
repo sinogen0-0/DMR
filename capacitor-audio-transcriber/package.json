@@ -1,0 +1,66 @@
+{
+  "name": "capacitor-audio-transcriber",
+  "version": "1.0.0",
+  "description": "Native Android plugin for simultaneous audio recording and speech transcription",
+  "main": "dist/plugin.cjs.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "unpkg": "dist/plugin.js",
+  "files": [
+    "android/src/main/",
+    "android/build.gradle",
+    "dist/",
+    "ios/Plugin/",
+    "CapacitorAudioTranscriber.podspec"
+  ],
+  "author": "Dungeon Deck",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "local"
+  },
+  "bugs": {
+    "url": "local"
+  },
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "native",
+    "audio",
+    "recording",
+    "transcription",
+    "speech-recognition"
+  ],
+  "scripts": {
+    "verify": "npm run verify:android",
+    "verify:android": "cd android && ./gradlew clean build test && cd ..",
+    "lint": "npm run eslint",
+    "eslint": "eslint . --ext ts",
+    "build": "npm run clean && npm run docgen && tsc && rollup -c rollup.config.js",
+    "clean": "rimraf ./dist",
+    "watch": "tsc --watch",
+    "prepublishOnly": "npm run build",
+    "docgen": "docgen --api AudioTranscriberPlugin --output-readme README.md --output-json dist/docs.json"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.0.1",
+    "@capacitor/core": "^6.0.1",
+    "@capacitor/docgen": "^0.0.18",
+    "@ionic/eslint-config": "^0.3.0",
+    "@ionic/swiftlint-config": "^1.1.2",
+    "eslint": "^7.11.0",
+    "prettier": "~2.3.0",
+    "prettier-plugin-java": "~1.0.2",
+    "rimraf": "^3.0.2",
+    "rollup": "^2.32.0",
+    "typescript": "~4.1.5"
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^6.0.0"
+  },
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  }
+}

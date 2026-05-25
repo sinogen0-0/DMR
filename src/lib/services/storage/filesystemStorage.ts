@@ -1,5 +1,6 @@
-import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import type { Recording } from '$lib/types';
+import { logDevice } from '$lib/utils/deviceLogger';
 
 /**
  * Capacitor Filesystem-based storage for iOS and Android.
@@ -9,9 +10,33 @@ import type { Recording } from '$lib/types';
 
 const RECORDINGS_DIR = 'DungeonDeckRecorder/recordings';
 const METADATA_FILE = 'DungeonDeckRecorder/metadata.json';
+const STORAGE_DIRECTORY = Directory.Data;
+
+async function writeFileWithFallback(path: string, data: string): Promise<Directory> {
+  try {
+    await Filesystem.writeFile({
+      path,
+      data,
+      directory: STORAGE_DIRECTORY,
+      recursive: true,
+    });
+    return STORAGE_DIRECTORY;
+  } catch (error) {
+    logDevice('FilesystemStorage', 'writeFile Data failed, retrying Documents', { path, error: String(error) }, 'warn');
+    await Filesystem.writeFile({
+      path,
+      data,
+      directory: Directory.Documents,
+      recursive: true,
+    });
+    return Directory.Documents;
+  }
+}
+
+type StoredRecordingMetadata = Omit<Recording, 'blob' | 'blobUrl'>;
 
 interface StoredMetadata {
-  recordings: Record<string, Omit<Recording, 'blobUrl'>>;
+  recordings: Record<string, StoredRecordingMetadata>;
   lastUpdated: number;
 }
 
@@ -24,11 +49,20 @@ export class FilesystemStorage {
   async initialize(): Promise<void> {
     try {
       // Create recordings directory if it doesn't exist
-      await Filesystem.mkdir({
-        path: RECORDINGS_DIR,
-        directory: Directory.Documents,
-        recursive: true,
-      });
+      try {
+        await Filesystem.mkdir({
+          path: RECORDINGS_DIR,
+          directory: STORAGE_DIRECTORY,
+          recursive: true,
+        });
+      } catch (error) {
+        const message = String(error).toLowerCase();
+        if (!message.includes('exists') && !message.includes('directory exists')) {
+          throw error;
+        }
+
+        logDevice('FilesystemStorage', 'initialize(): recordings directory already exists');
+      }
 
       // Load metadata index
       await this.loadMetadata();
@@ -44,17 +78,36 @@ export class FilesystemStorage {
     try {
       const result = await Filesystem.readFile({
         path: METADATA_FILE,
-        directory: Directory.Documents,
+        directory: STORAGE_DIRECTORY,
+        encoding: Encoding.UTF8,
       });
 
       const text = typeof result.data === 'string' ? result.data : new TextDecoder().decode((result.data as unknown) as Uint8Array);
       this.metadataCache = JSON.parse(text);
+      logDevice('FilesystemStorage', 'loadMetadata() success', {
+        count: Object.keys(this.metadataCache.recordings || {}).length,
+      });
     } catch {
-      // Metadata file doesn't exist yet, initialize empty
+      // Metadata file doesn't exist yet, initialize empty and save it
       this.metadataCache = {
         recordings: {},
         lastUpdated: Date.now(),
       };
+      logDevice('FilesystemStorage', 'loadMetadata() initialized empty metadata cache', undefined, 'warn');
+      
+      // Save the empty metadata file to ensure directory structure exists
+      try {
+        await Filesystem.writeFile({
+          path: METADATA_FILE,
+          data: JSON.stringify(this.metadataCache, null, 2),
+          directory: STORAGE_DIRECTORY,
+          encoding: Encoding.UTF8,
+          recursive: true,
+        });
+        logDevice('FilesystemStorage', 'loadMetadata() created initial metadata file');
+      } catch (writeError) {
+        logDevice('FilesystemStorage', 'loadMetadata() failed to create metadata file', { error: String(writeError) }, 'warn');
+      }
     }
   }
 
@@ -71,8 +124,12 @@ export class FilesystemStorage {
       await Filesystem.writeFile({
         path: METADATA_FILE,
         data: JSON.stringify(this.metadataCache, null, 2),
-        directory: Directory.Documents,
+        directory: STORAGE_DIRECTORY,
+        encoding: Encoding.UTF8,
         recursive: true,
+      });
+      logDevice('FilesystemStorage', 'saveMetadata() success', {
+        count: Object.keys(this.metadataCache.recordings || {}).length,
       });
     } catch (error) {
       throw new Error(`Failed to save metadata: ${error}`);
@@ -84,39 +141,67 @@ export class FilesystemStorage {
    */
   async saveRecording(recording: Recording): Promise<void> {
     try {
+      logDevice('FilesystemStorage', 'saveRecording() start', {
+        id: recording.id,
+        format: recording.format,
+        size: recording.size,
+        hasBlob: !!recording.blob,
+        hasBlobUrl: !!recording.blobUrl,
+      });
       await this.initialize();
 
       if (!this.metadataCache) {
         throw new Error('Metadata cache not initialized');
       }
 
-      // If recording has blobUrl, save the blob to filesystem
-      if (recording.blobUrl) {
-        const fileName = `${recording.id}.${recording.format}`;
-        const filePath = `${RECORDINGS_DIR}/${fileName}`;
+      const fileName = `${recording.id}.${recording.format}`;
+      const filePath = `${RECORDINGS_DIR}/${fileName}`;
 
-        // Fetch blob from URL and convert to base64
+      let sourceBlob: Blob | undefined = recording.blob;
+      if (!sourceBlob && recording.blobUrl) {
         const response = await fetch(recording.blobUrl);
-        const blob = await response.blob();
-        const arrayBuffer = await blob.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        const base64String = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
-
-        await Filesystem.writeFile({
-          path: filePath,
-          data: base64String,
-          directory: Directory.Documents,
-          recursive: true,
-        });
+        sourceBlob = await response.blob();
       }
 
-      // Store metadata (without blobUrl, which is transient)
-      const metadata = { ...recording };
-      delete metadata.blobUrl;
+      if (!sourceBlob) {
+        logDevice('FilesystemStorage', 'saveRecording() missing payload', { id: recording.id }, 'error');
+        throw new Error('Recording has no audio payload (blob/blobUrl) to save');
+      }
 
-      this.metadataCache.recordings[recording.id] = metadata as Omit<Recording, 'blobUrl'>;
+      const arrayBuffer = await sourceBlob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        const chunk = uint8Array.subarray(i, i + chunkSize);
+        binary += String.fromCharCode(...chunk);
+      }
+      const base64String = btoa(binary);
+
+      const writeDirectory = await writeFileWithFallback(filePath, base64String);
+
+      const uriResult = await Filesystem.getUri({
+        path: filePath,
+        directory: writeDirectory,
+      });
+
+      // Store only serializable metadata (exclude blob/blobUrl)
+      const { blob, blobUrl, ...metadataWithoutBinary } = recording;
+      const metadata: StoredRecordingMetadata = {
+        ...metadataWithoutBinary,
+        path: uriResult.uri,
+      };
+
+      this.metadataCache.recordings[recording.id] = metadata;
       await this.saveMetadata();
+      logDevice('FilesystemStorage', 'saveRecording() complete', {
+        id: recording.id,
+        filePath,
+        bytes: uint8Array.length,
+        uri: uriResult.uri,
+      });
     } catch (error) {
+      logDevice('FilesystemStorage', 'saveRecording() failed', { error: String(error) }, 'error');
       throw new Error(`Failed to save recording: ${error}`);
     }
   }
@@ -144,16 +229,10 @@ export class FilesystemStorage {
 
         await Filesystem.readFile({
           path: filePath,
-          directory: Directory.Documents,
+          directory: STORAGE_DIRECTORY,
         });
 
-        // Create blob URL for playback (on mobile, this is a file path reference)
-        const path = `${Directory.Documents}/${RECORDINGS_DIR}/${fileName}`;
-
-        return {
-          ...metadata,
-          path,
-        };
+        return metadata;
       } catch {
         // File might not exist, return metadata only
         return metadata;
@@ -202,8 +281,13 @@ export class FilesystemStorage {
         recordings = recordings.slice(0, filter.limit);
       }
 
+      logDevice('FilesystemStorage', 'listRecordings() result', {
+        count: recordings.length,
+      });
+
       return recordings;
     } catch (error) {
+      logDevice('FilesystemStorage', 'listRecordings() failed', { error: String(error) }, 'error');
       throw new Error(`Failed to list recordings: ${error}`);
     }
   }
@@ -231,7 +315,7 @@ export class FilesystemStorage {
 
         await Filesystem.deleteFile({
           path: filePath,
-          directory: Directory.Documents,
+          directory: STORAGE_DIRECTORY,
         });
       } catch {
         // File might not exist, continue with metadata cleanup
@@ -289,14 +373,14 @@ export class FilesystemStorage {
       // Delete recordings directory
       await Filesystem.rmdir({
         path: RECORDINGS_DIR,
-        directory: Directory.Documents,
+        directory: STORAGE_DIRECTORY,
         recursive: true,
       });
 
       // Recreate empty directory
       await Filesystem.mkdir({
         path: RECORDINGS_DIR,
-        directory: Directory.Documents,
+        directory: STORAGE_DIRECTORY,
         recursive: true,
       });
 

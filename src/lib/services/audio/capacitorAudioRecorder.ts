@@ -1,154 +1,112 @@
-import { Filesystem, Directory } from '@capacitor/filesystem';
+﻿import { VoiceRecorder } from 'capacitor-voice-recorder';
 import type { Recording } from '$lib/types';
+import { logDevice } from '$lib/utils/deviceLogger';
 
 /**
- * Capacitor Audio implementation for iOS and Android native recording.
- * Note: Actual audio recording requires either:
- * 1. A dedicated Capacitor plugin (@capacitor/audio, capacitor-audio, etc.)
- * 2. Custom platform-specific code via Capacitor plugins
- * 3. Web Audio API as fallback on mobile browsers
- * 
- * This implementation provides the storage and metadata structure.
- * Audio recording would be implemented via a third-party Capacitor plugin.
+ * Native audio recorder for Android and iOS using capacitor-voice-recorder.
+ * Uses platform-native audio APIs (Android AudioRecord / iOS AVAudioRecorder).
  */
 
-interface AudioRecorderConfig {
-  recordingDirectory?: string;
-  recordingQuality?: 'low' | 'medium' | 'high';
-}
-
 export class CapacitorAudioRecorder {
-  private recordingId: string | null = null;
   private startTime: number = 0;
-  private recordingDirectory: string;
-  private isRecording: boolean = false;
+  private _state: 'inactive' | 'recording' | 'paused' = 'inactive';
 
-  constructor(config: AudioRecorderConfig = {}) {
-    this.recordingDirectory = config.recordingDirectory || 'audio_recordings';
-  }
-
-  /**
-   * Start recording using Capacitor Audio API
-   */
   async start(): Promise<void> {
     try {
-      // Create recording directory if it doesn't exist
-      try {
-        await Filesystem.mkdir({
-          path: this.recordingDirectory,
-          directory: Directory.Documents,
-          recursive: true,
-        });
-      } catch (error) {
-        // Directory might already exist
+      logDevice('CapacitorAudioRecorder', 'start() called', {
+        stateBefore: this._state,
+      });
+      const statusBefore = await VoiceRecorder.getCurrentStatus();
+      logDevice('CapacitorAudioRecorder', 'native status before start', { status: statusBefore.status });
+
+      this.startTime = Date.now();
+      await VoiceRecorder.startRecording();
+      this._state = 'recording';
+
+      const statusAfter = await VoiceRecorder.getCurrentStatus();
+      logDevice('CapacitorAudioRecorder', 'recording started', {
+        stateAfter: this._state,
+        nativeStatusAfter: statusAfter.status,
+      });
+    } catch (error) {
+      this._state = 'inactive';
+      logDevice('CapacitorAudioRecorder', 'start() failed', { error: String(error) }, 'error');
+      throw new Error(`Failed to start native recording: ${error}`);
+    }
+  }
+
+  pause(): void {
+    VoiceRecorder.pauseRecording()
+      .then(() => { this._state = 'paused'; })
+      .catch((err) => console.error('[CapacitorAudioRecorder] Pause failed:', err));
+  }
+
+  resume(): void {
+    VoiceRecorder.resumeRecording()
+      .then(() => { this._state = 'recording'; })
+      .catch((err) => console.error('[CapacitorAudioRecorder] Resume failed:', err));
+  }
+
+  async stop(): Promise<Recording> {
+    try {
+      logDevice('CapacitorAudioRecorder', 'stop() called', {
+        stateBefore: this._state,
+        elapsedSeconds: this.getElapsedTime(),
+      });
+      const result = await VoiceRecorder.stopRecording();
+      this._state = 'inactive';
+
+      const payload = result?.value ?? ({} as { recordDataBase64?: string; mimeType?: string; msDuration?: number });
+      const rawBase64 = (payload.recordDataBase64 ?? '').replace(/^data:.*;base64,/, '');
+      const safeMimeType = payload.mimeType || 'audio/aac';
+      const durationMs = payload.msDuration ?? (Date.now() - this.startTime);
+
+      if (!rawBase64) {
+        logDevice('CapacitorAudioRecorder', 'empty native payload at stop', payload, 'error');
+        throw new Error('Native stop returned empty audio payload');
       }
 
-      // Generate unique recording ID
-      this.recordingId = `recording_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      this.startTime = Date.now();
+      const byteChars = atob(rawBase64);
+      const byteArray = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) {
+        byteArray[i] = byteChars.charCodeAt(i);
+      }
+      const audioBlob = new Blob([byteArray], { type: safeMimeType });
+      const blobUrl = URL.createObjectURL(audioBlob);
+      const duration = durationMs / 1000;
+      const format: Recording['format'] =
+        safeMimeType.includes('mp4') || safeMimeType.includes('aac') || safeMimeType.includes('m4a')
+          ? 'm4a'
+          : 'opus';
 
-      // Note: Capacitor Audio API may vary by plugin version
-      // This is a placeholder for the actual implementation
-      // You may need to use a custom plugin or native implementation
-      this.isRecording = true;
-
-      // This is simplified - actual implementation depends on Capacitor Audio plugin
-      console.log(`Recording started: ${this.recordingId}`);
-    } catch (error) {
-      throw new Error(`Failed to start recording: ${error}`);
-    }
-  }
-
-  /**
-   * Pause recording (platform-specific implementation)
-   */
-  pause(): void {
-    if (!this.isRecording) {
-      throw new Error('Recording not active');
-    }
-    // Platform-specific pause logic here
-    console.log('Recording paused');
-  }
-
-  /**
-   * Resume paused recording
-   */
-  resume(): void {
-    if (!this.isRecording) {
-      throw new Error('Recording not active');
-    }
-    // Platform-specific resume logic here
-    console.log('Recording resumed');
-  }
-
-  /**
-   * Stop recording and return Recording object
-   */
-  async stop(): Promise<Recording> {
-    if (!this.recordingId) {
-      throw new Error('No active recording');
-    }
-
-    try {
-      const fileName = `${this.recordingId}.m4a`; // Assume platform records in M4A format
-      const filePath = `${this.recordingDirectory}/${fileName}`;
-
-      // Get file stats to determine size
-      const fileInfo = await Filesystem.stat({
-        path: filePath,
-        directory: Directory.Documents,
+      logDevice('CapacitorAudioRecorder', 'recording stopped', {
+        blobSize: audioBlob.size,
+        duration,
+        mimeType: safeMimeType,
       });
 
-      const duration = (Date.now() - this.startTime) / 1000;
-
-      const recording: Recording = {
-        id: this.recordingId,
+      return {
+        id: `recording_${this.startTime}_${Math.random().toString(36).substr(2, 9)}`,
         timestamp: this.startTime,
         duration,
-        format: 'm4a', // Capacitor Audio typically records in M4A format
-        size: fileInfo.size || 0,
-        path: filePath, // Store file path for mobile filesystem
+        format,
+        size: audioBlob.size,
+        blob: audioBlob,
+        blobUrl,
       };
-
-      this.isRecording = false;
-      this.recordingId = null;
-
-      return recording;
     } catch (error) {
-      throw new Error(`Failed to stop recording: ${error}`);
+      this._state = 'inactive';
+      logDevice('CapacitorAudioRecorder', 'stop() failed', { error: String(error) }, 'error');
+      throw new Error(`Failed to stop native recording: ${error}`);
     }
   }
 
-  /**
-   * Get current recording state
-   */
-  getState(): 'recording' | 'paused' | 'inactive' {
-    if (!this.isRecording) return 'inactive';
-    // Actual pause state would be tracked separately
-    return 'recording';
+  getState(): 'inactive' | 'recording' | 'paused' {
+    return this._state;
   }
 
-  /**
-   * Get elapsed time in seconds
-   */
   getElapsedTime(): number {
-    if (!this.isRecording || !this.startTime) {
-      return 0;
-    }
+    if (this._state === 'inactive' || !this.startTime) return 0;
     return (Date.now() - this.startTime) / 1000;
-  }
-
-  /**
-   * Delete a recording file from device storage
-   */
-  async deleteRecording(recordingPath: string): Promise<void> {
-    try {
-      await Filesystem.deleteFile({
-        path: recordingPath,
-        directory: Directory.Documents,
-      });
-    } catch (error) {
-      throw new Error(`Failed to delete recording: ${error}`);
-    }
   }
 }

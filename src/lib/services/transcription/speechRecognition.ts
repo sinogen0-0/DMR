@@ -79,14 +79,16 @@ export class SpeechRecognitionWrapper {
       maxAlternatives: options.maxAlternatives ?? 1,
     };
 
-    // Check for Web Speech API support
-    const SpeechRecognitionAPI =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    // Check for Web Speech API support (browser only, not SSR)
+    if (typeof window !== 'undefined') {
+      const SpeechRecognitionAPI =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-    if (SpeechRecognitionAPI) {
-      this.recognition = new SpeechRecognitionAPI();
-      this.isSupportedFlag = true;
-      this._setupEventHandlers();
+      if (SpeechRecognitionAPI) {
+        this.recognition = new SpeechRecognitionAPI();
+        this.isSupportedFlag = true;
+        this._setupEventHandlers();
+      }
     }
   }
 
@@ -241,11 +243,24 @@ export class SpeechRecognitionWrapper {
     };
 
     this.recognition.onresult = (event: any) => {
+      console.log('[SpeechRecognitionWrapper] onresult event', {
+        resultIndex: event.resultIndex,
+        resultsLength: event.results?.length,
+      });
+      
       let interim = '';
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         const confidence = event.results[i][0].confidence;
+        
+        console.log('[SpeechRecognitionWrapper] result item', {
+          index: i,
+          transcript,
+          transcriptLength: transcript?.length || 0,
+          confidence,
+          isFinal: event.results[i].isFinal,
+        });
 
         if (event.results[i].isFinal) {
           this.finalTranscript += transcript + ' ';
@@ -270,6 +285,11 @@ export class SpeechRecognitionWrapper {
     };
 
     this.recognition.onerror = (event: any) => {
+      console.error('[SpeechRecognitionWrapper] error event', {
+        error: event.error,
+        message: event.message,
+        fullEvent: event,
+      });
       const errorMessage = this._errorCodeToString(event.error);
       this._emit('error', {
         type: 'error',

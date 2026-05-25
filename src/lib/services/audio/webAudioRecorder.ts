@@ -23,6 +23,11 @@ const MIME_TYPE_FALLBACKS = [
  * Get supported MIME type for recording
  */
 function getSupportedMimeType(preferred?: string): string {
+  // Guard against SSR - MediaRecorder is only available in browser
+  if (typeof MediaRecorder === 'undefined') {
+    return preferred || DEFAULT_MIME_TYPE;
+  }
+
   if (preferred && MediaRecorder.isTypeSupported(preferred)) {
     return preferred;
   }
@@ -49,6 +54,7 @@ export class WebAudioRecorder {
   private isPaused: boolean = false;
   private mimeType: string;
   private config: AudioRecorderConfig;
+  private currentStream: MediaStream | null = null;
 
   constructor(config: AudioRecorderConfig = {}) {
     this.config = config;
@@ -60,12 +66,34 @@ export class WebAudioRecorder {
    */
   async start(): Promise<void> {
     try {
+      console.log('[WebAudioRecorder] Requesting microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
         },
+      });
+
+      // Store stream for potential sharing with other services
+      this.currentStream = stream;
+
+      // Verify stream has active audio tracks
+      const audioTracks = stream.getAudioTracks();
+      console.log('[WebAudioRecorder] Audio tracks received:', audioTracks.length);
+      
+      if (audioTracks.length === 0) {
+        throw new Error('No audio tracks in stream');
+      }
+
+      audioTracks.forEach((track, index) => {
+        console.log(`[WebAudioRecorder] Track ${index}:`, {
+          enabled: track.enabled,
+          muted: track.muted,
+          readyState: track.readyState,
+          label: track.label,
+          settings: track.getSettings?.()
+        });
       });
 
       const options: MediaRecorderOptions = {
@@ -83,11 +111,20 @@ export class WebAudioRecorder {
       this.pauseTime = 0;
 
       this.mediaRecorder.ondataavailable = (event) => {
+        console.log('[WebAudioRecorder] Data chunk received:', event.data.size, 'bytes');
         this.audioChunks.push(event.data);
       };
 
-      this.mediaRecorder.start();
+      this.mediaRecorder.onerror = (event) => {
+        console.error('[WebAudioRecorder] MediaRecorder error:', event);
+      };
+
+      console.log('[WebAudioRecorder] Starting MediaRecorder with:', options);
+      // Request data chunks every 100ms for smooth capture
+      this.mediaRecorder.start(100);
+      console.log('[WebAudioRecorder] ✅ MediaRecorder started, state:', this.mediaRecorder.state);
     } catch (error) {
+      console.error('[WebAudioRecorder] ❌ Failed to start:', error);
       if (error instanceof DOMException && error.name === 'NotAllowedError') {
         throw new Error('Microphone permission denied');
       }
@@ -136,6 +173,9 @@ export class WebAudioRecorder {
         return;
       }
 
+      console.log('[WebAudioRecorder] Stopping recording, state:', this.mediaRecorder.state);
+      console.log('[WebAudioRecorder] Audio chunks collected:', this.audioChunks.length);
+
       this.mediaRecorder.onstop = () => {
         try {
           const audioBlob = new Blob(this.audioChunks, {
@@ -145,10 +185,25 @@ export class WebAudioRecorder {
           const duration = (Date.now() - this.startTime) / 1000; // Convert to seconds
           const blobUrl = URL.createObjectURL(audioBlob);
 
+          console.log('[WebAudioRecorder] Recording stopped:', {
+            chunks: this.audioChunks.length,
+            blobSize: audioBlob.size,
+            duration,
+            mimeType: this.mimeType
+          });
+
+          if (audioBlob.size === 0) {
+            console.warn('[WebAudioRecorder] ⚠️ WARNING: Blob is empty! No audio data captured.');
+          }
+
           // Stop all tracks to release microphone
           this.mediaRecorder!.stream.getTracks().forEach((track) => {
+            console.log('[WebAudioRecorder] Stopping track:', track.label, track.readyState);
             track.stop();
           });
+
+          // Clear the current stream reference
+          this.currentStream = null;
 
           const recording: Recording = {
             id: `recording_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -178,6 +233,14 @@ export class WebAudioRecorder {
     if (this.mediaRecorder.state === 'paused') return 'paused';
     if (this.mediaRecorder.state === 'recording') return 'recording';
     return 'inactive';
+  }
+
+  /**
+   * Get the current MediaStream (for sharing with other services like speech recognition)
+   * @returns The active MediaStream or null if not recording
+   */
+  getStream(): MediaStream | null {
+    return this.currentStream;
   }
 
   /**

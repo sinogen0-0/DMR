@@ -12,21 +12,24 @@ import { CapacitorPermissions, type PermissionStatus, type PermissionCheckResult
 async function checkWebMicrophonePermission(): Promise<PermissionCheckResult> {
   try {
     if (!navigator.permissions || !navigator.permissions.query) {
+      console.log('[MicPermission] Permissions API not available, returning unknown');
       return {
-        status: 'unknown',
+        status: 'prompt',
         canRequest: !!navigator.mediaDevices?.getUserMedia,
         reason: 'Permissions API not available',
       };
     }
 
-    const result = await navigator.permissions.query({ name: 'microphone' });
+    const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+    console.log('[MicPermission] Permission query result:', result.state);
     return {
       status: result.state as PermissionStatus,
-      canRequest: result.state !== 'denied',
+      canRequest: !!navigator.mediaDevices?.getUserMedia, // Always allow request on web if getUserMedia available
     };
   } catch (error) {
+    console.warn('[MicPermission] Permission check failed, returning prompt:', error);
     return {
-      status: 'unknown',
+      status: 'prompt',
       canRequest: !!navigator.mediaDevices?.getUserMedia,
       reason: `Permission check failed: ${error}`,
     };
@@ -39,15 +42,18 @@ async function checkWebMicrophonePermission(): Promise<PermissionCheckResult> {
 async function requestWebMicrophonePermission(): Promise<PermissionRequestResult> {
   try {
     if (!navigator.mediaDevices?.getUserMedia) {
+      console.error('[MicPermission] getUserMedia not available');
       return {
         granted: false,
         reason: 'getUserMedia API not available',
       };
     }
 
+    console.log('[MicPermission] Requesting microphone access via getUserMedia...');
     // Attempt to get audio stream (this triggers permission prompt if needed)
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
+    console.log('[MicPermission] Microphone access granted, stopping stream');
     // Stop all tracks to release the microphone
     stream.getTracks().forEach((track) => {
       track.stop();
@@ -57,6 +63,7 @@ async function requestWebMicrophonePermission(): Promise<PermissionRequestResult
       granted: true,
     };
   } catch (error) {
+    console.error('[MicPermission] Permission request failed:', error);
     if (error instanceof DOMException) {
       if (error.name === 'NotAllowedError') {
         return {

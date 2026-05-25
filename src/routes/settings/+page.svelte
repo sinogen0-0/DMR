@@ -1,315 +1,389 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { page } from '$app/stores';
-  import { appSettings, initializeSettingsStore, updateSettings, resetSettings, DEFAULT_SETTINGS } from '$stores/settingsStore';
-  import TaggingParametersPanel from '../../components/TaggingParametersPanel.svelte';
+  /**
+   * Settings View - Twin Peaks Interface
+   * Modal overlay for app configuration
+   */
 
-  let saveMessage = '';
+  import { goto } from '$app/navigation';
+  import OscilloscopeDisplay from '$lib/components/physical/OscilloscopeDisplay.svelte';
+  import PhysicalButton from '$lib/components/physical/PhysicalButton.svelte';
+  import ButtonPanel from '$lib/components/physical/ButtonPanel.svelte';
+
   let activeSection: 'general' | 'tagging' = 'general';
 
-  onMount(() => {
-    initializeSettingsStore();
-  });
-
-  $: {
-    const section = $page.url.searchParams.get('section');
-    if (section === 'tagging') activeSection = 'tagging';
-    else activeSection = 'general';
+  function handleClose() {
+    goto('/recording'); // Return to default view
   }
 
-  function onCodecChange(value: 'flac' | 'opus') {
-    updateSettings({ audioCodec: value });
-    saveMessage = 'Settings updated.';
-  }
-
-  function onMergeThresholdInput(value: number) {
-    updateSettings({ mergeThreshold: value });
-    saveMessage = 'Settings updated.';
-  }
-
-  function onReferenceStyleChange(value: 'modal' | 'fullpage') {
-    updateSettings({ referenceLinkStyle: value });
-    saveMessage = 'Settings updated.';
-  }
-
-  function onLanguageChange(value: string) {
-    updateSettings({ language: value || 'en-US' });
-    saveMessage = 'Settings updated.';
-  }
-
-  function onThemeChange(value: 'light' | 'dark') {
-    updateSettings({ theme: value });
-    saveMessage = 'Settings updated.';
-  }
-
-  function onReset() {
-    resetSettings();
-    saveMessage = 'Settings reset to defaults.';
+  function handleSave() {
+    // TODO: Implement actual settings save
+    console.log('[Settings] Save settings');
+    handleClose();
   }
 </script>
 
-<div class="settings-page">
-  <div class="header-strip">
-    <div>
-      <div class="eyebrow">System Configuration</div>
-      <h1>Settings Control Center</h1>
-      <p>General app behavior and tagging/categorization tuning in one place.</p>
+<div class="settings-view">
+  <div class="settings-container">
+    <!-- Header -->
+    <div class="settings-header">
+      <div class="header-title crt-text-bright">FIELD LOG: CONFIGURATION</div>
+      <button class="close-button" on:click={handleClose}>✕</button>
     </div>
-  </div>
 
-  <div class="section-tabs" role="tablist" aria-label="Settings sections">
-    <button
-      type="button"
-      class:active={activeSection === 'general'}
-      role="tab"
-      aria-selected={activeSection === 'general'}
-      on:click={() => (activeSection = 'general')}
-    >General Settings</button>
-    <button
-      type="button"
-      class:active={activeSection === 'tagging'}
-      role="tab"
-      aria-selected={activeSection === 'tagging'}
-      on:click={() => (activeSection = 'tagging')}
-    >Tagging Parameters</button>
-  </div>
+    <!-- Main Content -->
+    <div class="settings-content">
+      <OscilloscopeDisplay className="settings-display">
+        <div class="display-content">
+          <!-- Section Tabs -->
+          <div class="section-tabs">
+            <button
+              class="tab-button crt-text {activeSection === 'general' ? 'active' : ''}"
+              on:click={() => activeSection = 'general'}
+            >
+              GENERAL
+            </button>
+            <button
+              class="tab-button crt-text {activeSection === 'tagging' ? 'active' : ''}"
+              on:click={() => activeSection = 'tagging'}
+            >
+              TAGGING
+            </button>
+          </div>
 
-  {#if saveMessage}
-    <div class="status-banner">{saveMessage}</div>
-  {/if}
+          <div class="divider" />
 
-  {#if activeSection === 'general'}
-    <section class="panel">
-      <h2>Audio Codec</h2>
-      <div class="segmented">
-        <button
-          type="button"
-          class:active={$appSettings.audioCodec === 'flac'}
-          on:click={() => onCodecChange('flac')}
-        >FLAC -> M4A</button>
-        <button
-          type="button"
-          class:active={$appSettings.audioCodec === 'opus'}
-          on:click={() => onCodecChange('opus')}
-        >Opus</button>
-      </div>
-    </section>
+          <!-- General Settings -->
+          {#if activeSection === 'general'}
+            <div class="settings-section">
+              <div class="section-title crt-text-bright">&gt; GENERAL SETTINGS</div>
+              
+              <div class="setting-item">
+                <div class="setting-label crt-text">AUDIO CODEC</div>
+                <select class="crt-select crt-text">
+                  <option>OPUS (DEFAULT)</option>
+                  <option>M4A (APPLE)</option>
+                  <option>WAV (UNCOMPRESSED)</option>
+                </select>
+              </div>
 
-    <section class="panel">
-      <h2>Merge Similarity Threshold</h2>
-      <label>
-        <span>{$appSettings.mergeThreshold}%</span>
-        <input
-          type="range"
-          min="50"
-          max="100"
-          step="1"
-          value={$appSettings.mergeThreshold}
-          on:input={(e) => onMergeThresholdInput(Number((e.currentTarget as HTMLInputElement).value))}
-        />
-      </label>
-      <p class="hint">Entities at or above this threshold auto-merge.</p>
-    </section>
+              <div class="setting-item">
+                <div class="setting-label crt-text">LANGUAGE</div>
+                <select class="crt-select crt-text">
+                  <option>EN-US</option>
+                  <option>EN-GB</option>
+                  <option>ES-ES</option>
+                </select>
+              </div>
 
-    <section class="panel">
-      <h2>Reference Link Style</h2>
-      <div class="segmented">
-        <button
-          type="button"
-          class:active={$appSettings.referenceLinkStyle === 'modal'}
-          on:click={() => onReferenceStyleChange('modal')}
-        >Modal Preview</button>
-        <button
-          type="button"
-          class:active={$appSettings.referenceLinkStyle === 'fullpage'}
-          on:click={() => onReferenceStyleChange('fullpage')}
-        >Full Page</button>
-      </div>
-    </section>
+              <div class="setting-item">
+                <div class="setting-label crt-text">DOSSIER LINK STYLE</div>
+                <div class="setting-options">
+                  <label class="crt-text-dim">
+                    <input type="radio" name="linkStyle" value="modal" checked />
+                    MODAL PREVIEW
+                  </label>
+                  <label class="crt-text-dim">
+                    <input type="radio" name="linkStyle" value="fullpage" />
+                    FULL PAGE
+                  </label>
+                </div>
+              </div>
+            </div>
+          {/if}
 
-    <section class="panel two-col">
-      <div>
-        <h2>Language</h2>
-        <input value={$appSettings.language} on:input={(e) => onLanguageChange((e.currentTarget as HTMLInputElement).value)} />
-      </div>
-      <div>
-        <h2>Theme</h2>
-        <div class="segmented">
-          <button
-            type="button"
-            class:active={$appSettings.theme === 'light'}
-            on:click={() => onThemeChange('light')}
-          >Light</button>
-          <button
-            type="button"
-            class:active={$appSettings.theme === 'dark'}
-            on:click={() => onThemeChange('dark')}
-          >Dark</button>
+          <!-- Tagging Settings -->
+          {#if activeSection === 'tagging'}
+            <div class="settings-section">
+              <div class="section-title crt-text-bright">&gt; TAGGING PARAMETERS</div>
+              
+              <div class="setting-item">
+                <div class="setting-label crt-text">EXTRACTION CONFIDENCE</div>
+                <div class="slider-container">
+                  <input type="range" min="0" max="100" value="70" class="crt-slider" />
+                  <span class="slider-value crt-text-dim">70%</span>
+                </div>
+              </div>
+
+              <div class="setting-item">
+                <div class="setting-label crt-text">MERGE THRESHOLD</div>
+                <div class="slider-container">
+                  <input type="range" min="0" max="100" value="80" class="crt-slider" />
+                  <span class="slider-value crt-text-dim">80%</span>
+                </div>
+              </div>
+
+              <div class="setting-item">
+                <div class="setting-label crt-text">MAX ENTITIES PER RECORDING</div>
+                <input type="number" min="1" max="50" value="20" class="crt-input crt-text" />
+              </div>
+            </div>
+          {/if}
+
+          <div class="divider" />
+
+          <!-- Info -->
+          <div class="settings-info crt-text-dim">
+            <p>&gt; FIELD_LOG_V1.0</p>
+            <p>&gt; BUILD: 2026.05.11</p>
+          </div>
         </div>
-      </div>
-    </section>
-
-    <div class="actions-row">
-      <button class="danger-button" type="button" on:click={onReset}>Reset Defaults ({DEFAULT_SETTINGS.mergeThreshold}% merge)</button>
+      </OscilloscopeDisplay>
     </div>
-  {:else}
-    <TaggingParametersPanel />
-  {/if}
+
+    <!-- Controls -->
+    <div class="settings-controls">
+      <ButtonPanel orientation="horizontal" align="space-between">
+        <PhysicalButton
+          label="CANCEL"
+          icon="✗"
+          variant="default"
+          size="medium"
+          on:click={handleClose}
+        />
+        <PhysicalButton
+          label="SAVE"
+          icon="✓"
+          variant="record"
+          size="medium"
+          on:click={handleSave}
+        />
+      </ButtonPanel>
+    </div>
+  </div>
 </div>
 
 <style>
-  .settings-page {
-    display: grid;
-    gap: 0.95rem;
-    padding: 1rem 0 2rem;
-  }
-
-  .header-strip {
+  .settings-view {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85);
     display: flex;
-    justify-content: flex-start;
-    gap: 1rem;
-    align-items: flex-start;
-    background: #eee8d8;
-    border-top: 1px solid #fff;
-    border-left: 1px solid #fff;
-    border-bottom: 2px solid #bcae95;
-    border-right: 2px solid #bcae95;
-    padding: 0.9rem 1rem;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fade-in 200ms;
   }
 
-  .eyebrow {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.68rem;
-    letter-spacing: 0.11em;
-    text-transform: uppercase;
-    color: #9a442d;
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
-  h1 {
-    margin: 0.25rem 0 0;
-    font-family: 'Space Grotesk', sans-serif;
-    color: #363226;
-  }
-
-  p { margin: 0.35rem 0 0; color: #6b6250; font-family: 'Inter', sans-serif; }
-
-  .panel {
-    background: #fff;
-    border-top: 1px solid #f7f1e6;
-    border-left: 1px solid #f7f1e6;
-    border-bottom: 2px solid #d2c6b1;
-    border-right: 2px solid #d2c6b1;
-    padding: 0.9rem;
-    display: grid;
-    gap: 0.6rem;
-  }
-
-  h2 {
-    margin: 0;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #9a442d;
-  }
-
-  .segmented {
+  .settings-container {
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
     display: flex;
-    gap: 0.45rem;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    animation: slide-up 300ms ease-out;
   }
 
-  .segmented button,
-  .secondary-button,
-  .danger-button {
+  @keyframes slide-up {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* Header */
+  .settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    background: var(--color-device-panel);
+    border-radius: 8px 8px 0 0;
+  }
+
+  .header-title {
+    font-size: 1rem;
+    font-weight: bold;
+    letter-spacing: 0.1em;
+  }
+
+  .close-button {
+    width: 32px;
+    height: 32px;
+    background: var(--color-button-default);
     border: none;
-    padding: 0.45rem 0.8rem;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    border-radius: 50%;
+    color: #999999;
+    font-size: 1.2rem;
     cursor: pointer;
-    background: #eee8d8;
-    color: #363226;
-    box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #b8ad98;
+    transition: all 100ms;
   }
 
-  .segmented button.active {
-    background: #9a442d;
-    color: #fef9f0;
-    box-shadow: inset 1px 1px 0 #c46a50, inset -1px -1px 0 #5a2818;
+  .close-button:hover {
+    background: var(--color-button-highlight);
+    color: #ffffff;
   }
 
-  label span {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.75rem;
-    color: #363226;
+  /* Content */
+  .settings-content {
+    flex: 1;
+    min-height: 0;
   }
 
-  input[type='range'] { width: 100%; }
-
-  input[type='text'],
-  input:not([type]) {
-    border-top: 2px solid #c7b89f;
-    border-left: 2px solid #c7b89f;
-    border-bottom: 1px solid #fff;
-    border-right: 1px solid #fff;
-    background: #fef9f0;
-    color: #2e261c;
-    font-family: 'Inter', sans-serif;
-    padding: 0.45rem 0.5rem;
-    font-size: 0.86rem;
+  .settings-display {
+    height: 100%;
+    min-height: 400px;
+    max-height: 600px;
   }
 
-  .hint { font-size: 0.8rem; color: #7f715c; margin: 0; }
-
-  .two-col {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    align-items: start;
+  .display-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
   }
 
-  .status-banner {
-    background: #eef6e9;
-    color: #3f5f3c;
-    padding: 0.55rem 0.7rem;
-    border-top: 1px solid #f5fff0;
-    border-left: 1px solid #f5fff0;
-    border-bottom: 1px solid #b7d1ad;
-    border-right: 1px solid #b7d1ad;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.82rem;
-  }
-
-  .actions-row { display: flex; justify-content: flex-end; }
-
+  /* Tabs */
   .section-tabs {
     display: flex;
-    gap: 0.4rem;
-    margin-top: 0.2rem;
+    gap: var(--spacing-sm);
   }
 
-  .section-tabs button {
-    border: none;
-    padding: 0.42rem 0.75rem;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+  .tab-button {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--color-phosphor-green-dim);
+    color: var(--color-phosphor-green-dim);
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
     cursor: pointer;
-    background: #eee8d8;
-    color: #6b6250;
-    box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #b8ad98;
+    transition: all 100ms;
   }
 
-  .section-tabs button.active {
-    background: #9a442d;
-    color: #fef9f0;
-    box-shadow: inset 1px 1px 0 #c46a50, inset -1px -1px 0 #5a2818;
+  .tab-button:hover {
+    border-color: var(--color-phosphor-green);
+    color: var(--color-phosphor-green);
   }
 
-  .danger-button {
-    background: #7d2719;
-    color: #fef9f0;
-    box-shadow: inset 1px 1px 0 #a13f2e, inset -1px -1px 0 #4d140b;
+  .tab-button.active {
+    background: var(--color-crt-bg-light);
+    border-color: var(--color-phosphor-green-bright);
+    color: var(--color-phosphor-green-bright);
+    box-shadow: 0 0 8px var(--color-phosphor-glow);
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--color-phosphor-green-dim);
+    opacity: 0.3;
+    box-shadow: 0 0 2px var(--color-phosphor-glow);
+  }
+
+  /* Settings Section */
+  .settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+  }
+
+  .section-title {
+    font-size: 0.85rem;
+    font-weight: bold;
+    letter-spacing: 0.1em;
+  }
+
+  .setting-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  .setting-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+
+  /* Form Controls */
+  .crt-select,
+  .crt-input {
+    background: rgba(0, 26, 13, 0.5);
+    border: 1px solid var(--color-phosphor-green-dim);
+    color: var(--color-phosphor-green);
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    outline: none;
+  }
+
+  .crt-select:focus,
+  .crt-input:focus {
+    border-color: var(--color-phosphor-green);
+    box-shadow: 0 0 8px var(--color-phosphor-glow);
+  }
+
+  .setting-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-xs);
+  }
+
+  .setting-options label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+
+  .slider-container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+
+  .crt-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: var(--color-crt-bg-light);
+    outline: none;
+  }
+
+  .crt-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--color-phosphor-green);
+    cursor: pointer;
+    border-radius: 50%;
+    box-shadow: 0 0 4px var(--color-phosphor-glow);
+  }
+
+  .slider-value {
+    min-width: 40px;
+    font-size: 0.75rem;
+  }
+
+  /* Info */
+  .settings-info {
+    font-size: 0.7rem;
+    line-height: 1.6;
+    margin-top: var(--spacing-md);
+  }
+
+  /* Controls */
+  .settings-controls {
+    padding: var(--spacing-md);
+    background: var(--color-device-panel);
+    border-radius: 0 0 8px 8px;
   }
 </style>

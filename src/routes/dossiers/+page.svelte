@@ -1,495 +1,395 @@
 <script lang="ts">
+  /**
+   * Dossier View - Twin Peaks Tape Deck Archive
+   * Browse dossiers with physical category buttons and scroll wheel
+   */
+
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { page } from '$app/stores';
+  import OscilloscopeDisplay from '$lib/components/physical/OscilloscopeDisplay.svelte';
+  import PhysicalButton from '$lib/components/physical/PhysicalButton.svelte';
+  import ButtonPanel from '$lib/components/physical/ButtonPanel.svelte';
+  import ScrollWheel from '$lib/components/physical/ScrollWheel.svelte';
   import {
     dossiers,
     dossiersByType,
     dossiersLoading,
-    dossiersError,
     ensureLoaded,
-    loadDossiers
   } from '$stores/dossierStore';
-  import DossierCard from '../../components/DossierCard.svelte';
-  import type { DossierType } from '$lib/types';
-  import type { AnyDossier } from '$lib/types/dossier';
+  import type { DossierType, AnyDossier } from '$lib/types/dossier';
 
-  // ── Type meta ──────────────────────────────────────────────────
+  type CategoryFilter = 'ALL' | DossierType;
 
-  const TYPES: DossierType[] = ['NPC', 'PLAYER_CHARACTER', 'LOCATION', 'STORY_PLOT'];
+  // Category metadata
+  const CATEGORIES: Array<{ id: CategoryFilter; label: string; icon: string }> = [
+    { id: 'ALL', label: 'ALL', icon: '◉' },
+    { id: 'NPC', label: 'NPC', icon: '👤' },
+    { id: 'PLAYER_CHARACTER', label: 'CHAR', icon: '⚔' },
+    { id: 'LOCATION', label: 'LOC', icon: '📍' },
+    { id: 'STORY_PLOT', label: 'STORY', icon: '📖' },
+  ];
 
-  const TYPE_META: Record<DossierType, { slug: string; label: string; desc: string }> = {
-    NPC: {
-      slug: 'npc',
-      label: 'NPC Registry',
-      desc: 'Non-player characters, villains, and allies'
-    },
-    PLAYER_CHARACTER: {
-      slug: 'characters',
-      label: 'Characters',
-      desc: 'Player characters and their histories'
-    },
-    LOCATION: {
-      slug: 'locations',
-      label: 'Locations',
-      desc: 'Places, dungeons, towns, and regions'
-    },
-    STORY_PLOT: {
-      slug: 'stories',
-      label: 'Story Threads',
-      desc: 'Active quests, mysteries, and plot arcs'
-    }
-  };
+  // State
+  let selectedCategory: CategoryFilter = 'ALL';
+  let scrollPosition = 0;
+  let selectedDossierIndex = -1;
 
-  const SLUG_TO_TYPE: Record<string, DossierType> = {
-    npc: 'NPC',
-    characters: 'PLAYER_CHARACTER',
-    locations: 'LOCATION',
-    stories: 'STORY_PLOT'
-  };
-
-  // ── Sort state ──────────────────────────────────────────────────
-
-  type SortKey = 'name' | 'updatedAt' | 'mentions';
-  let sortKey: SortKey = 'name';
-  let sortDir: 'asc' | 'desc' = 'asc';
-
-  // ── Reactive: current type filter from URL ──────────────────────
-
-  $: activeSlug = $page.url.searchParams.get('type') ?? null;
-  $: activeType = activeSlug ? (SLUG_TO_TYPE[activeSlug] ?? null) : null;
-
+  // Filtered and sorted dossiers
   $: filteredDossiers = (() => {
-    const all = activeType ? ($dossiersByType[activeType] ?? []) : $dossiers;
-    return [...all].sort((a, b) => {
-      let cmp = 0;
-      if (sortKey === 'name') cmp = a.name.localeCompare(b.name);
-      else if (sortKey === 'updatedAt') cmp = a.updatedAt - b.updatedAt;
-      else if (sortKey === 'mentions') cmp = a.mentions.length - b.mentions.length;
-      return sortDir === 'asc' ? cmp : -cmp;
-    });
+    if (selectedCategory === 'ALL') {
+      return $dossiers;
+    }
+    return $dossiersByType[selectedCategory] ?? [];
   })();
 
-  // ── Actions ─────────────────────────────────────────────────────
+  $: sortedDossiers = [...filteredDossiers].sort((a, b) => 
+    b.updatedAt - a.updatedAt // Most recent first
+  );
+
+  $: selectedDossier = selectedDossierIndex >= 0 && selectedDossierIndex < sortedDossiers.length
+    ? sortedDossiers[selectedDossierIndex]
+    : null;
 
   onMount(async () => {
     await ensureLoaded();
   });
 
-  function selectType(slug: string) {
-    goto(`/dossiers?type=${slug}`);
+  function handleCategoryClick(category: CategoryFilter) {
+    selectedCategory = category;
+    scrollPosition = 0;
+    selectedDossierIndex = -1;
   }
 
-  function clearType() {
-    goto('/dossiers');
+  function handleScrollChange(event: CustomEvent<{ value: number }>) {
+    scrollPosition = event.detail.value;
+    // Map scroll position to dossier index
+    const maxIndex = sortedDossiers.length - 1;
+    selectedDossierIndex = Math.round((scrollPosition / 100) * maxIndex);
   }
 
   function openDossier(dossier: AnyDossier) {
     goto(`/dossiers/${dossier.id}`);
   }
 
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) {
-      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortKey = key;
-      sortDir = 'asc';
-    }
+  function formatDate(timestamp: number): string {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }
+
+  function getTypeColor(type: DossierType): string {
+    const colors: Record<DossierType, string> = {
+      NPC: '#ff8844',
+      PLAYER_CHARACTER: '#44ff88',
+      LOCATION: '#4488ff',
+      STORY_PLOT: '#ff44ff',
+    };
+    return colors[type] || 'var(--color-phosphor-green)';
   }
 </script>
 
-<!-- ─── DOSSIER BROWSE PAGE ─── -->
-<div class="page">
+<div class="dossier-view">
+  <!-- Left Panel - Category Buttons (25%) -->
+  <div class="category-panel">
+    <ButtonPanel className="category-buttons">
+      <div class="panel-label crt-text-dim">CATEGORY</div>
+      {#each CATEGORIES as category}
+        <PhysicalButton
+          label={category.label}
+          icon={category.icon}
+          variant="default"
+          size="medium"
+          pressed={selectedCategory === category.id}
+          on:click={() => handleCategoryClick(category.id)}
+        />
+      {/each}
+    </ButtonPanel>
+  </div>
 
-  <!-- Page header -->
-  <div class="page-header">
-    <div class="header-left">
-      {#if activeType}
-        <button class="back-btn" type="button" on:click={clearType}>← All Dossiers</button>
-        <h2>{TYPE_META[activeType].label}</h2>
-      {:else}
-        <h2>Dossiers</h2>
-        <p class="page-desc">Browse all tracked entities from your sessions.</p>
+  <!-- Center - Oscilloscope Display (55%) -->
+  <div class="display-section">
+    <OscilloscopeDisplay className="dossier-display">
+      <div class="display-content">
+        <!-- Header -->
+        <div class="display-header">
+          <div class="header-title crt-text-bright">FIELD LOG: ARCHIVE</div>
+          <div class="count-indicator crt-text-dim">
+            [{sortedDossiers.length}] RECORDS
+          </div>
+        </div>
+
+        <div class="divider" />
+
+        {#if $dossiersLoading}
+          <div class="loading-state crt-text">
+            <span class="led pulse active" />
+            <span>&gt; LOADING DATABASE...</span>
+          </div>
+        {:else if sortedDossiers.length === 0}
+          <div class="empty-state crt-text-dim">
+            <p>&gt; NO RECORDS FOUND</p>
+            <p>&gt; FILTER: {selectedCategory}</p>
+          </div>
+        {:else}
+          <!-- Dossier List -->
+          <div class="dossier-list">
+            {#each sortedDossiers as dossier, i}
+              <button
+                class="dossier-item crt-text {i === selectedDossierIndex ? 'selected' : ''}"
+                on:click={() => openDossier(dossier)}
+              >
+                <div class="item-header">
+                  <span 
+                    class="item-type" 
+                    style="color: {getTypeColor(dossier.type)}"
+                  >
+                    [{dossier.type}]
+                  </span>
+                  <span class="item-date crt-text-dim">
+                    {formatDate(dossier.updatedAt)}
+                  </span>
+                </div>
+                <div class="item-name crt-text-bright">
+                  {#if i === selectedDossierIndex}&gt; {/if}{dossier.name}
+                </div>
+                {#if dossier.description && i === selectedDossierIndex}
+                  <div class="item-description crt-text-dim">
+                    {dossier.description.substring(0, 120)}
+                    {dossier.description.length > 120 ? '...' : ''}
+                  </div>
+                {/if}
+                {#if dossier.mentions.length > 0}
+                  <div class="item-mentions crt-text-dim">
+                    {dossier.mentions.length} mention{dossier.mentions.length !== 1 ? 's' : ''}
+                  </div>
+                {/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    </OscilloscopeDisplay>
+  </div>
+
+  <!-- Right Panel - Scroll Wheel (20%) -->
+  <div class="wheel-section">
+    <div class="wheel-container">
+      <div class="wheel-label crt-text-dim">SCROLL</div>
+      <ScrollWheel
+        bind:value={scrollPosition}
+        min={0}
+        max={100}
+        step={1}
+        size={120}
+        adaptiveResistance={true}
+        on:change={handleScrollChange}
+      />
+      {#if selectedDossier}
+        <div class="wheel-info crt-text-dim">
+          {selectedDossierIndex + 1} / {sortedDossiers.length}
+        </div>
       {/if}
     </div>
-    <div class="header-right">
-      <button
-        class="reload-btn"
-        type="button"
-        on:click={() => loadDossiers()}
-        disabled={$dossiersLoading}
-      >Refresh</button>
-    </div>
   </div>
-
-  <div class="type-tabs" role="tablist" aria-label="Dossier types">
-    <button
-      class="type-tab"
-      class:active={activeType === null}
-      type="button"
-      role="tab"
-      aria-selected={activeType === null}
-      on:click={clearType}
-    >All</button>
-    {#each TYPES as t (t)}
-      {@const meta = TYPE_META[t]}
-      <button
-        class="type-tab"
-        class:active={activeType === t}
-        type="button"
-        role="tab"
-        aria-selected={activeType === t}
-        on:click={() => selectType(meta.slug)}
-      >{meta.label}</button>
-    {/each}
-  </div>
-
-  {#if $dossiersLoading}
-    <div class="status-panel">Loading dossiers…</div>
-  {:else if $dossiersError}
-    <div class="status-panel error">{$dossiersError}</div>
-
-  <!-- HUB VIEW: no type filter — show type overview tiles -->
-  {:else if !activeType}
-    <div class="type-grid">
-      {#each TYPES as t (t)}
-        {@const meta = TYPE_META[t]}
-        {@const count = $dossiersByType[t]?.length ?? 0}
-        <button
-          class="type-tile"
-          type="button"
-          on:click={() => selectType(meta.slug)}
-        >
-          <div class="tile-count">{count}</div>
-          <div class="tile-label">{meta.label}</div>
-          <div class="tile-desc">{meta.desc}</div>
-          <div class="tile-arrow">→</div>
-        </button>
-      {/each}
-    </div>
-
-    <!-- Quick all-dossiers overview if any exist -->
-    {#if $dossiers.length > 0}
-      <div class="section-header">
-        <h3 class="section-title">All Dossiers <span class="count-badge">{$dossiers.length}</span></h3>
-        <div class="sort-controls">
-          <span class="sort-label">Sort:</span>
-          {#each ([['name', 'Name'], ['updatedAt', 'Updated'], ['mentions', 'Mentions']] as const) as [key, lbl]}
-            <button
-              class="sort-btn"
-              class:active={sortKey === key}
-              type="button"
-              on:click={() => toggleSort(key)}
-            >{lbl} {sortKey === key ? (sortDir === 'asc' ? '↑' : '↓') : ''}</button>
-          {/each}
-        </div>
-      </div>
-      <div class="dossier-grid">
-        {#each filteredDossiers as dossier (dossier.id)}
-          <DossierCard {dossier} on:click={() => openDossier(dossier)} />
-        {/each}
-      </div>
-    {:else}
-      <div class="status-panel">No dossiers yet. Save some transcription extractions to create them.</div>
-    {/if}
-
-  <!-- FILTERED VIEW: type tab selected -->
-  {:else}
-    {@const count = filteredDossiers.length}
-    <div class="section-header">
-      <h3 class="section-title">
-        {count} {count === 1 ? 'entry' : 'entries'}
-      </h3>
-      <div class="sort-controls">
-        <span class="sort-label">Sort:</span>
-        {#each ([['name', 'Name'], ['updatedAt', 'Updated'], ['mentions', 'Mentions']] as const) as [key, lbl]}
-          <button
-            class="sort-btn"
-            class:active={sortKey === key}
-            type="button"
-            on:click={() => toggleSort(key)}
-          >{lbl} {sortKey === key ? (sortDir === 'asc' ? '↑' : '↓') : ''}</button>
-        {/each}
-      </div>
-    </div>
-
-    {#if filteredDossiers.length === 0}
-      <div class="status-panel">No {TYPE_META[activeType].label.toLowerCase()} dossiers yet.</div>
-    {:else}
-      <div class="dossier-grid">
-        {#each filteredDossiers as dossier (dossier.id)}
-          <DossierCard {dossier} showType={false} on:click={() => openDossier(dossier)} />
-        {/each}
-      </div>
-    {/if}
-  {/if}
-
 </div>
 
 <style>
-  .page {
+  .dossier-view {
+    display: flex;
+    height: 100%;
+    background: var(--color-device-bg);
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+  }
+
+  /* Category Panel - 25% */
+  .category-panel {
+    flex: 0 0 25%;
+    min-width: 0;
+  }
+
+  .category-buttons {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .panel-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-align: center;
+    margin-bottom: var(--spacing-xs);
+  }
+
+  /* Display Section - 55% */
+  .display-section {
+    flex: 0 0 55%;
+    min-width: 0;
+  }
+
+  .dossier-display {
+    height: 100%;
+  }
+
+  .display-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    height: 100%;
+  }
+
+  /* Header */
+  .display-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .header-title {
+    font-size: 0.9rem;
+    font-weight: bold;
+    letter-spacing: 0.1em;
+  }
+
+  .count-indicator {
+    font-size: 0.7rem;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--color-phosphor-green-dim);
+    opacity: 0.3;
+    box-shadow: 0 0 2px var(--color-phosphor-glow);
+  }
+
+  /* Loading/Empty States */
+  .loading-state,
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-xl);
+    font-size: 0.9rem;
+  }
+
+  /* Dossier List */
+  .dossier-list {
     flex: 1;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
-    padding: 2rem;
-    background: #fef9f0;
-    min-height: 0;
+    gap: var(--spacing-sm);
   }
 
-  /* ── Page header ── */
-  .page-header {
+  .dossier-item {
+    background: transparent;
+    border: 1px solid var(--color-phosphor-green-dim);
+    color: var(--color-phosphor-green);
+    font-family: var(--font-display);
+    padding: var(--spacing-sm);
+    text-align: left;
+    cursor: pointer;
+    transition: all 100ms;
     display: flex;
-    align-items: flex-end;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+
+  .dossier-item:hover {
+    background: var(--color-crt-bg-light);
+    border-color: var(--color-phosphor-green);
+    box-shadow: 0 0 8px var(--color-phosphor-glow);
+  }
+
+  .dossier-item.selected {
+    background: var(--color-crt-bg-light);
+    border-color: var(--color-phosphor-green-bright);
+    box-shadow: 0 0 12px var(--color-phosphor-glow);
+  }
+
+  .item-header {
+    display: flex;
     justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
+    align-items: center;
+    font-size: 0.7rem;
   }
 
-  .header-left {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
+  .item-type {
+    font-weight: bold;
+    opacity: 0.8;
   }
 
-  .page-header h2 {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin: 0;
-    color: #363226;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+  .item-date {
+    font-size: 0.65rem;
   }
 
-  .page-desc {
-    font-family: 'Inter', sans-serif;
-    font-size: 0.875rem;
-    color: #6b6250;
-    margin: 0;
+  .item-name {
+    font-size: 0.85rem;
+    font-weight: bold;
+    line-height: 1.3;
   }
 
-  .back-btn {
-    font-family: 'Space Grotesk', sans-serif;
+  .item-description {
     font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 0;
-    background: none;
-    border: none;
-    color: #9a442d;
-    cursor: pointer;
-    text-align: left;
-  }
-
-  .back-btn:hover {
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-
-  .reload-btn {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.6875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 0.4rem 0.8rem;
-    cursor: pointer;
-    background: #363226;
-    color: #fef9f0;
-    border-top: 1px solid #5a5245;
-    border-left: 1px solid #5a5245;
-    border-bottom: 1px solid #1a180f;
-    border-right: 1px solid #1a180f;
-  }
-
-  .reload-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .type-tabs {
-    display: flex;
-    align-items: end;
-    gap: 0.35rem;
-    margin-top: -0.15rem;
-  }
-
-  .type-tab {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.675rem;
-    text-transform: uppercase;
-    letter-spacing: 0.09em;
-    padding: 0.45rem 0.8rem;
-    cursor: pointer;
-    background: #eee8d8;
-    color: #6b6250;
-    border-top: 1px solid #f5eee1;
-    border-left: 1px solid #f5eee1;
-    border-bottom: 1px solid #b3a791;
-    border-right: 1px solid #b3a791;
-  }
-
-  .type-tab.active {
-    background: #ffffff;
-    color: #9a442d;
-    border-top: 1px solid #eee8d8;
-    border-left: 1px solid #eee8d8;
-    border-bottom: 1px solid #363226;
-    border-right: 1px solid #363226;
-  }
-
-  /* ── Status panel ── */
-  .status-panel {
-    background: #ffffff;
-    border-top: 1px solid #eee8d8;
-    border-left: 1px solid #eee8d8;
-    border-bottom: 2px solid #363226;
-    border-right: 2px solid #363226;
-    padding: 1.25rem;
-    color: #6b6250;
-    font-family: 'Inter', sans-serif;
-    font-size: 0.875rem;
-  }
-
-  .status-panel.error {
-    color: #9a442d;
-    border-left: 4px solid #9a442d;
-  }
-
-  /* ── Type overview grid ── */
-  .type-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1rem;
-  }
-
-  .type-tile {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.3rem;
-    padding: 1.25rem;
-    background: #ffffff;
-    border-top: 1px solid #eee8d8;
-    border-left: 1px solid #eee8d8;
-    border-bottom: 3px solid #363226;
-    border-right: 3px solid #363226;
-    cursor: pointer;
-    text-align: left;
-    transition: box-shadow 0.1s;
-    position: relative;
-  }
-
-  .type-tile:hover {
-    box-shadow: 3px 3px 0 #9a442d;
-  }
-
-  .tile-count {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 2.25rem;
-    font-weight: 700;
-    color: #9a442d;
-    line-height: 1;
-  }
-
-  .tile-label {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: #363226;
-  }
-
-  .tile-desc {
-    font-family: 'Inter', sans-serif;
-    font-size: 0.75rem;
-    color: #6b6250;
     line-height: 1.4;
+    margin-top: var(--spacing-xs);
   }
 
-  .tile-arrow {
-    position: absolute;
-    bottom: 1rem;
-    right: 1rem;
-    font-size: 1rem;
-    color: #b0a489;
+  .item-mentions {
+    font-size: 0.65rem;
+    margin-top: var(--spacing-xs);
   }
 
-  /* ── Section header + sort ── */
-  .section-header {
+  /* Wheel Section - 20% */
+  .wheel-section {
+    flex: 0 0 20%;
+    min-width: 0;
+  }
+
+  .wheel-container {
+    height: 100%;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #eee8d8;
+    justify-content: center;
+    gap: var(--spacing-md);
+    background: var(--color-device-panel);
+    border-radius: 8px;
+    padding: var(--spacing-md);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
   }
 
-  .section-title {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #363226;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  .wheel-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
   }
 
-  .count-badge {
+  .wheel-info {
     font-size: 0.75rem;
-    padding: 0.1rem 0.4rem;
-    background: #eee8d8;
-    color: #6b6250;
+    text-align: center;
   }
 
-  .sort-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
+  /* Scrollbar styling */
+  .dossier-list::-webkit-scrollbar {
+    width: 6px;
   }
 
-  .sort-label {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.6875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: #9a8f7e;
+  .dossier-list::-webkit-scrollbar-track {
+    background: var(--color-crt-bg-light);
   }
 
-  .sort-btn {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 0.6875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 0.25rem 0.55rem;
-    cursor: pointer;
-    background: #fef9f0;
-    color: #6b6250;
-    border-top: 1px solid #eee8d8;
-    border-left: 1px solid #eee8d8;
-    border-bottom: 1px solid #c8bfae;
-    border-right: 1px solid #c8bfae;
+  .dossier-list::-webkit-scrollbar-thumb {
+    background: var(--color-phosphor-green-dim);
+    border-radius: 3px;
   }
 
-  .sort-btn.active {
-    background: #363226;
-    color: #fef9f0;
-    border-top: 1px solid #5a5245;
-    border-left: 1px solid #5a5245;
-    border-bottom: 1px solid #1a180f;
-    border-right: 1px solid #1a180f;
-  }
-
-  /* ── Dossier card grid ── */
-  .dossier-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-    gap: 0.875rem;
+  .dossier-list::-webkit-scrollbar-thumb:hover {
+    background: var(--color-phosphor-green);
   }
 </style>
-

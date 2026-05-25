@@ -2,15 +2,18 @@ import { detectPlatform, isWeb, isMobile } from '$lib/utils/platformDetector';
 import type { Recording } from '$lib/types';
 import { WebAudioRecorder } from './audio/webAudioRecorder';
 import { CapacitorAudioRecorder } from './audio/capacitorAudioRecorder';
+import { NativeAudioStreamRecorderAdapter } from './audio/nativeAudioStreamRecorderAdapter';
 import { createMicrophonePermission } from '$lib/features/audio/services/permissions/microphonePermission';
 
 /**
  * Platform-agnostic audio recording service
- * Automatically selects Web Audio API (web) or Capacitor Audio (mobile)
+ * Automatically selects:
+ * - Android: Native audio streaming (AudioRecord → PCM chunks → WAV encoding, 100% offline)
+ * - Web: Web Audio API
  * Provides unified interface for recording, pausing, resuming, and stopping
  */
 
-type AudioRecorderImpl = WebAudioRecorder | CapacitorAudioRecorder;
+type AudioRecorderImpl = WebAudioRecorder | CapacitorAudioRecorder | NativeAudioStreamRecorderAdapter;
 
 interface AudioScaleConfig {
   mimeType?: string;
@@ -32,21 +35,26 @@ class AudioService {
   }
 
   /**
-   * Initialize platform-specific recorder implementation
+   * Initialize platform-specific recorder.
+   * Android: Use native audio streaming (AudioRecord → PCM chunks → WAV encoding)
+   * Web: Use Web Audio API
    */
   private initializeRecorder(): void {
-    if (isWeb()) {
+    // Detect platform and use appropriate recorder
+    if (this.platform === 'android') {
+      // Use native audio streaming on Android
+      // Single AudioRecord stream provides raw PCM chunks
+      // Chunks are encoded to WAV in JavaScript layer
+      // 100% offline, no network dependencies
+      this.recorder = new NativeAudioStreamRecorderAdapter();
+      console.log('[AudioService] Using native audio streaming for Android');
+    } else {
+      // Use Web Audio API for web and other platforms
       this.recorder = new WebAudioRecorder({
         mimeType: this.config.mimeType,
         audioBitsPerSecond: this.config.audioBitsPerSecond,
       });
-    } else if (isMobile()) {
-      this.recorder = new CapacitorAudioRecorder({
-        recordingDirectory: this.config.recordingDirectory,
-        recordingQuality: this.config.recordingQuality,
-      });
-    } else {
-      throw new Error('Unsupported platform for audio recording');
+      console.log('[AudioService] Using WebAudioRecorder for web platform');
     }
   }
 
@@ -59,12 +67,18 @@ class AudioService {
       throw new Error('Audio recorder not initialized');
     }
 
+    console.log('[AudioService] startRecording() called', {
+      platform: this.platform,
+      stateBefore: this.recorder.getState(),
+    });
+
     if (this.recorder.getState() !== 'inactive') {
       throw new Error('Recording already in progress');
     }
 
     // Request microphone permission first
     const permissionResult = await this.permissionHandler.request();
+    console.log('[AudioService] permission result:', permissionResult);
     if (!permissionResult.granted) {
       throw new Error(
         `Microphone permission required. ${permissionResult.reason || 'Permission denied by user.'}`
@@ -73,6 +87,9 @@ class AudioService {
 
     try {
       await this.recorder.start();
+      console.log('[AudioService] startRecording() completed', {
+        stateAfter: this.recorder.getState(),
+      });
     } catch (error) {
       throw new Error(`Failed to start recording: ${error}`);
     }
@@ -121,12 +138,22 @@ class AudioService {
     }
 
     const state = this.recorder.getState();
+    console.log('[AudioService] stopRecording() called', {
+      stateBefore: state,
+      elapsedSeconds: this.recorder.getElapsedTime(),
+    });
     if (state === 'inactive') {
       throw new Error('No active recording to stop');
     }
 
     try {
       const recording = await this.recorder.stop();
+      console.log('[AudioService] stopRecording() completed', {
+        id: recording.id,
+        format: recording.format,
+        size: recording.size,
+        duration: recording.duration,
+      });
       return recording;
     } catch (error) {
       throw new Error(`Failed to stop recording: ${error}`);
@@ -188,10 +215,29 @@ class AudioService {
   }
 
   /**
+   * Request microphone permission
+   */
+  async requestMicrophonePermission() {
+    return await this.permissionHandler.request();
+  }
+
+  /**
    * Get permission status description for UI display
    */
   async getPermissionStatusDescription(): Promise<string> {
     return await this.permissionHandler.getStatusDescription();
+  }
+
+  /**
+   * Get the current MediaStream for sharing with other services.
+   * Returns null if not using WebAudioRecorder or if not recording.
+   * This allows speech recognition to use the same mic stream.
+   */
+  getAudioStream(): MediaStream | null {
+    if (this.recorder instanceof WebAudioRecorder) {
+      return this.recorder.getStream();
+    }
+    return null;
   }
 }
 

@@ -39,3 +39,7 @@ coverage/
 # Misc
 .DS_Store
 .vercel
+
+# ML Models (download with npm run download:ml-model)
+# ~23MB total - bundled for offline operation
+static/models/

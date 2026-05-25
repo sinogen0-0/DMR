@@ -1,0 +1,8 @@
+﻿Transcription Debug Summary
+Generated: 05/14/2026 00:37:28
+Package: com.dungeondeck.recorder
+Device: J
+
+HIGH: RECORD_AUDIO permission is not granted.
+Fix: Request microphone permission in-app and verify Android settings for this app.
+

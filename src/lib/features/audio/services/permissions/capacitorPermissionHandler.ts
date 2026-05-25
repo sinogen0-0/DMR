@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Shared type definitions for microphone permissions
  */
 export type PermissionStatus = 'granted' | 'denied' | 'prompt' | 'unknown';
@@ -19,47 +19,38 @@ export interface PermissionRequestResult {
  * Note: Permission handling via native Capacitor plugins (iOS/Android specific)
  */
 export class CapacitorPermissions {
-  /**
-   * Check microphone permission status on iOS/Android
-   * Note: Actual implementation depends on native platform code
+/**
+   * Check microphone permission using capacitor-voice-recorder plugin.
    */
   async checkMicrophoneStatus(): Promise<PermissionCheckResult> {
     try {
-      // For now, return 'prompt' status
-      // In production, this would call native platform-specific permission checks
-      // iOS: Uses Info.plist NSMicrophoneUsageDescription
-      // Android: Uses AndroidManifest.xml android:uses-permission android:name="android.permission.RECORD_AUDIO"
+      const { VoiceRecorder } = await import('capacitor-voice-recorder');
+      const result = await VoiceRecorder.hasAudioRecordingPermission();
       return {
-        status: 'prompt',
+        status: result.value ? 'granted' : 'prompt',
         canRequest: true,
-        reason: 'Permission check requires native platform implementation',
       };
     } catch (error) {
-      return {
-        status: 'unknown',
-        canRequest: false,
-        reason: `Capacitor permission check failed: ${error}`,
-      };
+      return { status: 'prompt', canRequest: true, reason: `Permission check failed: ${error}` };
     }
   }
 
   /**
-   * Request microphone permission on iOS/Android
-   * Note: Delegates to native platform layer via Capacitor bridge
+   * Request microphone permission via capacitor-voice-recorder plugin.
+   * On Android this shows the native RECORD_AUDIO dialog.
    */
   async requestMicrophone(): Promise<PermissionRequestResult> {
     try {
-      // For now, return success
-      // In production, this would use actual Capacitor permission APIs
-      // when available, or use platform-specific implementations
-      return {
-        granted: true,
-        reason: 'Permission request requires native platform implementation',
-      };
+      const { VoiceRecorder } = await import('capacitor-voice-recorder');
+      const result = await VoiceRecorder.requestAudioRecordingPermission();
+      if (result.value) {
+        return { granted: true };
+      }
+      return { granted: false, reason: 'Permission denied by user' };
     } catch (error) {
       return {
         granted: false,
-        reason: `Capacitor permission request failed: ${error}`,
+        reason: `Permission request failed: ${error}`,
       };
     }
   }

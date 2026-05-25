@@ -1,0 +1,166 @@
+﻿Activity Resolver Table:
+  Non-Data Actions:
+      android.intent.action.MAIN:
+        eac00ae com.dungeondeck.recorder/.MainActivity filter c057e4f
+          Action: "android.intent.action.MAIN"
+          Category: "android.intent.category.LAUNCHER"
+
+Receiver Resolver Table:
+  Non-Data Actions:
+      androidx.profileinstaller.action.SAVE_PROFILE:
+        aed09dc com.dungeondeck.recorder/androidx.profileinstaller.ProfileInstallReceiver filter 445b06b
+          Action: "androidx.profileinstaller.action.SAVE_PROFILE"
+      androidx.profileinstaller.action.INSTALL_PROFILE:
+        aed09dc com.dungeondeck.recorder/androidx.profileinstaller.ProfileInstallReceiver filter c166ae5
+          Action: "androidx.profileinstaller.action.INSTALL_PROFILE"
+      androidx.profileinstaller.action.SKIP_FILE:
+        aed09dc com.dungeondeck.recorder/androidx.profileinstaller.ProfileInstallReceiver filter c3b79ba
+          Action: "androidx.profileinstaller.action.SKIP_FILE"
+      androidx.profileinstaller.action.BENCHMARK_OPERATION:
+        aed09dc com.dungeondeck.recorder/androidx.profileinstaller.ProfileInstallReceiver filter b2ee7c8
+          Action: "androidx.profileinstaller.action.BENCHMARK_OPERATION"
+
+Domain verification status:
+
+Permissions:
+  Permission [com.dungeondeck.recorder.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION] (793e395):
+    sourcePackage=com.dungeondeck.recorder
+    uid=10240 gids=[] type=0 prot=signature
+    perm=PermissionInfo{38d7caa com.dungeondeck.recorder.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION}
+
+Registered ContentProviders:
+  com.dungeondeck.recorder/androidx.startup.InitializationProvider:
+    Provider{4b6109b com.dungeondeck.recorder/androidx.startup.InitializationProvider}
+  com.dungeondeck.recorder/androidx.core.content.FileProvider:
+    Provider{d767c38 com.dungeondeck.recorder/androidx.core.content.FileProvider}
+
+ContentProvider Authorities:
+  [com.dungeondeck.recorder.androidx-startup]:
+    Provider{4b6109b com.dungeondeck.recorder/androidx.startup.InitializationProvider}
+      applicationInfo=ApplicationInfo{9c2411 com.dungeondeck.recorder}
+  [com.dungeondeck.recorder.fileprovider]:
+    Provider{d767c38 com.dungeondeck.recorder/androidx.core.content.FileProvider}
+      applicationInfo=ApplicationInfo{b9eb976 com.dungeondeck.recorder}
+
+Key Set Manager:
+  [com.dungeondeck.recorder]
+      Signing KeySets: 95
+
+Packages:
+  Package [com.dungeondeck.recorder] (39fb1ae):
+    userId=10240
+    pkg=Package{65b1b77 com.dungeondeck.recorder}
+    codePath=/data/app/~~IlOyIjL6-_jjZX8vb2-5sw==/com.dungeondeck.recorder-rr75aCU49kwLQTCSOPhKYg==
+    resourcePath=/data/app/~~IlOyIjL6-_jjZX8vb2-5sw==/com.dungeondeck.recorder-rr75aCU49kwLQTCSOPhKYg==
+    legacyNativeLibraryDir=/data/app/~~IlOyIjL6-_jjZX8vb2-5sw==/com.dungeondeck.recorder-rr75aCU49kwLQTCSOPhKYg==/lib
+    extractNativeLibs=true
+    primaryCpuAbi=null
+    secondaryCpuAbi=null
+    cpuAbiOverride=null
+    versionCode=1 minSdk=22 targetSdk=34
+    minExtensionVersions=[]
+    versionName=1.0
+    usesNonSdkApi=false
+    splits=[base]
+    apkSigningVersion=2
+    flags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ALLOW_BACKUP ]
+    privateFlags=[ PRIVATE_FLAG_ACTIVITIES_RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION ALLOW_AUDIO_PLAYBACK_CAPTURE PRIVATE_FLAG_ALLOW_NATIVE_HEAP_POINTER_TAGGING ]
+    forceQueryable=false
+    queriesIntents=[Intent { act=android.speech.RecognitionService }]
+    dataDir=/data/user/0/com.dungeondeck.recorder
+    supportsScreens=[small, medium, large, xlarge, resizeable, anyDensity]
+    timeStamp=2026-05-13 23:23:15
+    lastUpdateTime=2026-05-13 23:23:17
+    packageSource=0
+    signatures=PackageSignatures{c3323e4 version:2, signatures:[391fff55], past signatures:[]}
+    installPermissionsFixed=true
+    pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ALLOW_BACKUP ]
+    declared permissions:
+      com.dungeondeck.recorder.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION: prot=signature, INSTALLED
+    requested permissions:
+      android.permission.RECORD_AUDIO
+      android.permission.MODIFY_AUDIO_SETTINGS
+      android.permission.INTERNET
+      android.permission.VIBRATE
+      com.dungeondeck.recorder.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+    install permissions:
+      com.dungeondeck.recorder.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION: granted=true
+      android.permission.MODIFY_AUDIO_SETTINGS: granted=true
+      android.permission.INTERNET: granted=true
+      android.permission.VIBRATE: granted=true
+    User 0: ceDataInode=63949 installed=true hidden=false suspended=false distractionFlags=0 stopped=false notLaunched=false enabled=0 instant=false virtual=false
+      installReason=0
+      firstInstallTime=2026-05-13 23:23:17
+      uninstallReason=0
+      overlay paths:
+        /product/overlay/NavigationBarModeGestural/NavigationBarModeGesturalOverlay.apk
+        /product/overlay/NavigationBarHideGestureLineOverlay/NavigationBarHideGestureLineOverlay.apk
+        /data/resource-cache/com.android.systemui-neutral-0tkN.frro
+        /data/resource-cache/com.android.systemui-accent-c6Sq.frro
+      legacy overlay paths:
+        /product/overlay/NavigationBarModeGestural/NavigationBarModeGesturalOverlay.apk
+        /product/overlay/NavigationBarHideGestureLineOverlay/NavigationBarHideGestureLineOverlay.apk
+      gids=[3003]
+      runtime permissions:
+        android.permission.RECORD_AUDIO: granted=true, flags=[ USER_SET|USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED]
+
+Queries:
+  system apps queryable: false
+  queries via forceQueryable:
+  queries via package name:
+  queries via component:
+    com.android.settings.intelligence:
+      com.dungeondeck.recorder
+    com.google.android.as:
+      com.dungeondeck.recorder
+    com.snapchat.android:
+      com.dungeondeck.recorder
+    com.sofi.mobile:
+      com.dungeondeck.recorder
+    com.discoverfinancial.mobile:
+      com.dungeondeck.recorder
+    com.instagram.android:
+      com.dungeondeck.recorder
+    com.dungeondeck.recorder:
+      com.google.android.as
+      com.google.android.googlequicksearchbox
+  queryable via interaction:
+    User 0:
+      [com.agold.AgoldFactoryTest,com.agui.studentmodel,com.android.deskclock,com.agold.networkmanager.service,com.mediatek.simprocessor,com.agui.calibration,com.agui.batterystatsdumper,com.mediatek,com.agui.ledbeltdebug,com.agui.app.memtester,com.agui.appblock,android,com.android.server.telecom,com.android.keychain,com.android.settings,com.android.localtransport,com.bhpme.AgingTest,com.devices118,com.agui.ledsettings,com.agui.settings,com.android.wallpaperbackup,com.mediatek.location.lppe.main,com.agui.frozen,com.agui.shortcutsettings,com.agui.app.apninfocollector,com.android.location.fused,com.mediatek.schpwronoff,com.agold.autopoweronoff,com.mediatek.carrierexpress,com.android.providers.settings,com.mediatek.omacp,com.android.dynsystem,com.android.inputdevices,com.agui.providers.ledbelt,com.agui.ledbeltwidget]:
+        com.dungeondeck.recorder
+      [com.google.android.gms,com.google.android.gsf]:
+        com.dungeondeck.recorder
+      com.google.android.webview:
+        com.dungeondeck.recorder
+      com.google.android.inputmethod.latin:
+        com.dungeondeck.recorder
+      com.google.android.permissioncontroller:
+        com.dungeondeck.recorder
+      com.google.android.providers.media.module:
+        com.dungeondeck.recorder
+      com.dungeondeck.recorder:
+        com.google.android.webview
+  queryable via uses-library:
+
+Dexopt state:
+  [com.dungeondeck.recorder]
+    path: /data/app/~~IlOyIjL6-_jjZX8vb2-5sw==/com.dungeondeck.recorder-rr75aCU49kwLQTCSOPhKYg==/base.apk
+      arm64: [status=run-from-apk] [reason=unknown]
+  BgDexopt state:
+    enabled:true
+    mDexOptThread:null
+    mDexOptCancellingThread:null
+    mFinishedPostBootUpdate:true
+    mLastExecutionStatus:0
+    mLastExecutionStartTimeMs:29440364
+    mLastExecutionDurationIncludingSleepMs:19711
+    mLastExecutionStartUptimeMs:14689895
+    mLastExecutionDurationMs:19711
+    now:38297345
+    mLastCancelledPackages:
+    mFailedPackageNamesPrimary:
+    mFailedPackageNamesSecondary:
+
+Compiler stats:
+  [com.dungeondeck.recorder]
+     base.apk - 556

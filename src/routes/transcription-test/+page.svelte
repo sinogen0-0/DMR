@@ -85,9 +85,9 @@
     }
   }
 
-  function stopTranscription() {
+  async function stopTranscription() {
     if (transcriptionService) {
-      transcriptionService.stopTranscription();
+      await transcriptionService.stopTranscription();
       isTranscribing = false;
     }
   }
